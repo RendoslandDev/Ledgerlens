@@ -10,7 +10,11 @@ log="$(mktemp)"
 status=${PIPESTATUS[0]}
 if [ "$status" -ne 0 ]; then
   # Annotations are one line: escape %, CR, and LF as the workflow-command format requires.
-  body="$(tail -n 120 "$log" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk '{ printf "%s%%0A", $0 }')"
+  # Drop colour codes and cargo's per-crate progress lines, which otherwise crowd out the errors.
+  esc="$(printf '\033')"
+  body="$(sed -e "s/${esc}\[[0-9;]*m//g" "$log" |
+    grep -vE '^ *(Checking|Compiling|Downloaded|Downloading|Fresh|Blocking|Updating|Locking|Adding) ' |
+    tail -n 150 | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk '{ printf "%s%%0A", $0 }')"
   echo "::error title=${title} failed (exit ${status})::${body}"
 fi
 rm -f "$log"
