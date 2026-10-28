@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "models"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "task",
+          "file",
+          "sha256",
+          "size",
+          "license"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "task": {
+            "enum": [
+              "ocr_detect",
+              "ocr_recognize",
+              "embed",
+              "classify",
+              "extract"
+            ]
+          },
+          "file": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+          "size": { "type": "integer", "minimum": 1 },
+          "license": { "type": "string", "minLength": 1 },
+          "input_shape": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 0 }
+          },
+          "supported_eps": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+[package]
+name = "ll-export"
+description = "CSV mappings for accounting and canonical Ledgerlens exports"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ll-core.workspace = true
+ll-store.workspace = true
+csv.workspace = true

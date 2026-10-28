@@ -1,0 +1,20 @@
+Kumasi Cloud Services Ltd
+14 Harper Road, Kumasi, Ghana
+VAT No: GH-C0004512
+
+INVOICE
+Invoice No: KCS-2026-0193
+Invoice Date: 2026-09-14
+Due Date: 2026-10-14
+
+Bill to: Northstar Studio
+
+Description                 Qty    Unit Price       Amount
+Managed hosting plan          1    GHS 1,200.00     GHS 1,200.00
+Backup storage 500 GB         2    GHS 150.00       GHS 300.00
+
+Subtotal                                            GHS 1,500.00
+VAT (15%)                                           GHS 225.00
+Total Due                                           GHS 1,725.00
+
+Thank you for your business.

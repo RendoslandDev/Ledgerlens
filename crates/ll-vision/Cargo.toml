@@ -1,0 +1,20 @@
+[package]
+name = "ll-vision"
+description = "On-device OCR on Apple platforms (macOS, iOS): Quartz page rendering and Apple Vision text recognition"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ll-core.workspace = true
+ll-ocr.workspace = true
+ll-render.workspace = true
+
+# Foundation, CoreGraphics, ImageIO, and Vision exist on both macOS and iOS.
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-core-foundation = "0.3"
+objc2-core-graphics = "0.3"
+objc2-image-io = "0.3"
+objc2-vision = { version = "0.3", features = ["objc2-core-graphics"] }

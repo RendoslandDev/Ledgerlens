@@ -1,0 +1,14 @@
+[package]
+name = "ll-sync"
+description = "Authenticated encryption envelopes for optional operation-log sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ll-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chacha20poly1305.workspace = true
+rand_core.workspace = true
+zeroize.workspace = true

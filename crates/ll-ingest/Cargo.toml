@@ -1,0 +1,13 @@
+[package]
+name = "ll-ingest"
+description = "Local document scanning, hashing, and duplicate detection"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ll-core.workspace = true
+hex.workspace = true
+sha2.workspace = true
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

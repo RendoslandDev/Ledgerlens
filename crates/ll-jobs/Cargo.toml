@@ -1,0 +1,11 @@
+[package]
+name = "ll-jobs"
+description = "Durable job queue on SQLite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ll-core.workspace = true
+ll-store.workspace = true
+rusqlite.workspace = true

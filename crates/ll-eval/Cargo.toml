@@ -1,0 +1,19 @@
+[package]
+name = "ll-eval"
+description = "Local dataset loaders and evaluation metrics for Ledgerlens"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ll-core.workspace = true
+parquet = { version = "60.1.0", default-features = false, features = ["snap"] }
+serde.workspace = true
+serde_json.workspace = true
+# The run command evaluates the real import path (`ll-eval` is a development tool, not shipped).
+ll-app.workspace = true
+ll-extract.workspace = true
+ll-vision.workspace = true
+sha2.workspace = true
+hex.workspace = true
+libc = "0.2"

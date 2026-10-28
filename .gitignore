@@ -1,0 +1,30 @@
+# Build output
+/target/
+apps/desktop/src-tauri/target/
+apps/desktop/dist/
+node_modules/
+
+# Generated mobile build output (gen/android and gen/apple keep their own ignores too)
+apps/desktop/src-tauri/gen/android/app/build/
+apps/desktop/src-tauri/gen/apple/build/
+
+# Signing material: never commit
+*.jks
+*.keystore
+*.p12
+*.p8
+*.mobileprovision
+keystore.properties
+.env*
+
+# Launch-video outputs (large, regenerable)
+brag-output*/
+
+# Local tooling
+.DS_Store
+.claude/settings.local.json
+
+# Locally installed agent skills (third-party tooling, not Ledgerlens source)
+.agents/
+.claude/skills/
+skills-lock.json

@@ -1,0 +1,15 @@
+[package]
+name = "ll-extract"
+description = "Tiered field extraction, validators and confidence calibration"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ll-core.workspace = true
+ll-store.workspace = true
+regex.workspace = true
+
+[dev-dependencies]
+ll-ocr.workspace = true
+ll-render.workspace = true

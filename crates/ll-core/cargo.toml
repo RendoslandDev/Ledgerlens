@@ -1,0 +1,29 @@
+[package]
+name = "ll-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+
+specta = ["dep:specta"]
+
+sqlx   = ["dep:sqlx"]
+
+[dependencies]
+serde     = { workspace = true, features = ["derive"] }
+
+thiserror = { workspace = true }
+
+ulid      = { workspace = true, features = ["serde"] }
+
+time      = { workspace = true, features = ["serde", "parsing", "formatting", "macros"] }
+
+specta    = { workspace = true, optional = true }
+
+sqlx      = { workspace = true, optional = true, default-features = false }
+
+[dev-dependencies]
+proptest = { workspace = true }
+serde_json = { workspace = true }

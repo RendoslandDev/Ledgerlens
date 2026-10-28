@@ -1,0 +1,6 @@
+*.onnx
+*.onnx.data
+*.pt
+*.pth
+*.safetensors
+*.gguf

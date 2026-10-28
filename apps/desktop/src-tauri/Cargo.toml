@@ -1,0 +1,37 @@
+[workspace]
+
+[package]
+name = "ledgerlens-desktop"
+version = "0.1.0"
+description = "Ledgerlens local-first paperwork desktop app"
+authors = ["Ledgerlens"]
+edition = "2021"
+
+[lib]
+name = "ledgerlens_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+ll-app = { path = "../../../crates/ll-app", features = ["specta"] }
+ll-core = { path = "../../../crates/ll-core", features = ["specta"] }
+specta = { version = "=2.0.0-rc.26", features = ["derive"] }
+specta-typescript = "0.0.13"
+tauri-specta = { version = "=2.0.0-rc.26", features = ["derive", "typescript"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Decodes file uploads on Android, where invoke bodies travel as JSON (already in the tree through Tauri).
+base64 = "0.22"
+
+# The system folder dialog for choosing a watched folder (already in the tree through Tauri).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSWindow", "NSResponder", "NSApplication"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSURL", "NSArray", "NSString"] }
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+serde_json = "1"

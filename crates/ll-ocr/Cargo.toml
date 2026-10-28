@@ -1,0 +1,12 @@
+[package]
+name = "ll-ocr"
+description = "OCR engine seam, CTC decoding and layout reconstruction"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ll-core.workspace = true
+ll-infer.workspace = true
+ll-render.workspace = true
+serde.workspace = true

@@ -1,0 +1,30 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ledgerlens-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "apps/desktop",
+        "run",
+        "dev"
+      ],
+      "port": 1420
+    },
+    {
+      "name": "ledgerlens-site",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4173",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "apps/web"
+      ],
+      "port": 4173
+    }
+  ]
+}

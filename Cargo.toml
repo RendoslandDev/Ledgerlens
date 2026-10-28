@@ -1,0 +1,85 @@
+# workspace
+[workspace]
+resolver = "3"
+members = [
+    "crates/ll-core",
+    "crates/ll-store",
+    "crates/ll-infer",
+    "crates/ll-render",
+    "crates/ll-ocr",
+    "crates/ll-extract",
+    "crates/ll-jobs",
+    "crates/ll-eval",
+    "crates/ll-embed",
+    "crates/ll-query",
+    "crates/ll-ingest",
+    "crates/ll-export",
+    "crates/ll-sync",
+    "crates/ll-app",
+    "crates/ll-vision",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+
+tokio = { version = "1", features = ["full"] }
+
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "macros"] }
+
+ort = "2"
+
+serde = { version = "1", features = ["derive"] }
+
+thiserror = "2"
+
+tracing = "0.1"
+
+serde_json = "1"
+ulid = "1"
+time = "0.3"
+specta = { version = "=2.0.0-rc.26", features = ["derive"] }
+proptest = "1"
+regex = "1"
+sha2 = "0.10"
+hex = "0.4"
+rusqlite = { version = "0.32", features = ["bundled"] }
+csv = "1"
+chacha20poly1305 = "0.10"
+rand_core = { version = "0.6", features = ["getrandom"] }
+zeroize = { version = "1", features = ["derive"] }
+pdf-extract = "0.12"
+
+ll-core = { path = "crates/ll-core" }
+ll-infer = { path = "crates/ll-infer" }
+ll-render = { path = "crates/ll-render" }
+ll-ocr = { path = "crates/ll-ocr" }
+ll-store = { path = "crates/ll-store" }
+ll-extract = { path = "crates/ll-extract" }
+ll-embed = { path = "crates/ll-embed" }
+ll-query = { path = "crates/ll-query" }
+ll-ingest = { path = "crates/ll-ingest" }
+ll-jobs = { path = "crates/ll-jobs" }
+ll-export = { path = "crates/ll-export" }
+ll-sync = { path = "crates/ll-sync" }
+ll-app = { path = "crates/ll-app" }
+ll-vision = { path = "crates/ll-vision" }
+
+
+
+
+[profile.release]
+
+lto = "thin"
+
+codegen-units = 1
+ 
+strip = true
+
+
+[profile.dev.package."*"]
+
+opt-level = 2

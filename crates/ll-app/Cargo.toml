@@ -1,0 +1,29 @@
+[package]
+name = "ll-app"
+description = "Application service layer: import, review, query, report, and export over the Ledgerlens crates"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+# Derives `specta::Type` on the boundary types so the desktop shell can generate TypeScript.
+specta = ["dep:specta", "dep:specta-typescript", "ll-core/specta"]
+
+[dependencies]
+specta = { workspace = true, optional = true }
+specta-typescript = { version = "0.0.13", optional = true }
+ll-core.workspace = true
+ll-store.workspace = true
+ll-jobs.workspace = true
+ll-ingest.workspace = true
+ll-extract.workspace = true
+ll-query.workspace = true
+ll-export.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+pdf-extract.workspace = true
+ll-ocr.workspace = true
+ll-vision.workspace = true

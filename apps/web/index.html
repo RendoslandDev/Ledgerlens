@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ebebe8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#070707" media="(prefers-color-scheme: dark)" />
+    <meta
+      name="description"
+      content="Ledgerlens reads invoices and receipts on your own Mac, then lets you review, query, and export them. Nothing is uploaded."
+    />
+    <title>Ledgerlens · Paperwork, read locally</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script>
+      // A saved choice overrides the system theme; without one the page follows the system.
+      try {
+        const saved = localStorage.getItem("ledgerlens-site-theme");
+        if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="nav-inner">
+        <a class="wordmark" href="#top" aria-label="Ledgerlens home">
+          <img src="favicon.svg" alt="" width="24" height="24" />
+          Ledgerlens
+        </a>
+        <nav class="nav-links" aria-label="Sections">
+          <a href="#start">Start</a>
+          <a href="#features">Features</a>
+          <a href="#measured">Measured</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#download">Download</a>
+        </nav>
+        <div class="nav-tools">
+          <button class="theme-toggle" type="button" aria-label="Switch theme" title="Switch theme">
+            <svg class="sun" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="moon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </button>
+          <a class="btn btn-primary btn-small" href="#get">Get the preview</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="wrap hero-head">
+          <span class="logo-tile"><img src="favicon.svg" alt="" width="34" height="34" /></span>
+          <p class="pill"><span class="pill-dot"></span> Early preview · macOS</p>
+          <h1>Your paperwork,<br />read on your own machine.</h1>
+          <p class="lede">
+            Ledgerlens pulls vendors, dates, totals, and line items out of invoices and receipts
+            on your Mac, sends anything it isn't sure about to review, and turns the rest
+            into records you can query and export.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#get">Get the preview</a>
+            <a class="btn" href="#start">See how it starts</a>
+          </div>
+        </div>
+
+        <div class="wrap">
+          <div class="window" role="img" aria-label="The Ledgerlens inbox as a board: documents in Needs review, Ready, and Approved columns, with one invoice open for review">
+            <div class="window-bar">
+              <span></span><span></span><span></span>
+              <em>My workspace · Inbox</em>
+            </div>
+            <div class="window-body">
+              <div class="mock-rail"><i class="on"></i><i></i><i></i><i></i></div>
+              <div class="mock-board">
+                <div class="mock-col">
+                  <p class="mock-col-head"><i class="d warn"></i>Needs review <b>2</b></p>
+                  <div class="mock-card">
+                    <p><b>GitHub, Inc.</b><code>$35.00</code></p>
+                    <small>Oct 3 · GH-INV-58210</small>
+                    <span class="mock-tags"><em class="t violet">Receipt</em><em class="t amber">Duplicate?</em></span>
+                  </div>
+                  <div class="mock-card">
+                    <p><b>blank.png</b><code>—</code></p>
+                    <small>Enter the details by hand</small>
+                    <span class="mock-tags"><em class="t violet">Receipt</em></span>
+                  </div>
+                </div>
+                <div class="mock-col">
+                  <p class="mock-col-head"><i class="d info"></i>Ready <b>2</b></p>
+                  <div class="mock-card active">
+                    <p><b>Kumasi Cloud Services</b><code>GHS 1,725.00</code></p>
+                    <small>Sep 14 · KCS-2026-0193</small>
+                    <span class="mock-tags"><em class="t green">Invoice</em></span>
+                  </div>
+                  <div class="mock-card">
+                    <p><b>GitHub, Inc.</b><code>$35.00</code></p>
+                    <small>Oct 3 · GH-INV-58210</small>
+                    <span class="mock-tags"><em class="t violet">Receipt</em></span>
+                  </div>
+                </div>
+                <div class="mock-col">
+                  <p class="mock-col-head"><i class="d ok"></i>Approved <b>1</b></p>
+                  <div class="mock-card">
+                    <p><b>Hotel Baixa Lisboa</b><code>€457.92</code></p>
+                    <small>Sep 22 · HBL-2026-7741</small>
+                    <span class="mock-tags"><em class="t green">Invoice</em></span>
+                  </div>
+                  <div class="mock-drop">Drag here to approve</div>
+                </div>
+              </div>
+              <div class="mock-review">
+                <b>Kumasi Cloud Services Ltd</b>
+                <small>Read from the PDF's text layer</small>
+                <dl>
+                  <div><dt>Vendor</dt><dd>Kumasi Cloud Services Ltd</dd></div>
+                  <div><dt>Date</dt><dd><code>2026-09-14</code></dd></div>
+                  <div><dt>Subtotal</dt><dd><code>GHS 1,500.00</code></dd></div>
+                  <div><dt>Tax</dt><dd><code>GHS 225.00</code></dd></div>
+                  <div><dt>Total</dt><dd><code>GHS 1,725.00</code></dd></div>
+                </dl>
+                <div class="mock-actions"><span>Skip</span><span class="go">Approve</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="caption">Illustration of the inbox's board view. The records are the app's own test documents.</p>
+        </div>
+      </section>
+
+      <section id="start" class="section">
+        <div class="wrap">
+          <p class="kicker">Start</p>
+          <h2>Pick how your paperwork comes in.</h2>
+          <div class="starts">
+            <article class="start">
+              <div class="tiles t-2x2" aria-hidden="true">
+                <span>PDF</span><span>PNG</span><span>JPG</span><span>TIFF</span>
+              </div>
+              <h3>Add documents</h3>
+              <p>Pick files or drop them in. Each is checked by its bytes and capped at 25 MB.</p>
+              <span class="tag">Recommended</span>
+            </article>
+            <article class="start">
+              <div class="tiles t-wide" aria-hidden="true">
+                <span>Folder</span><span>Files</span><span>Files</span>
+              </div>
+              <h3>Import a folder</h3>
+              <p>Bring in a whole folder at once. Files already in your inbox are skipped.</p>
+              <span class="tag">Bulk</span>
+            </article>
+            <article class="start">
+              <div class="tiles t-tall" aria-hidden="true">
+                <span>Folder</span><span>Watch</span><span>15 s</span>
+              </div>
+              <h3>Watch a folder</h3>
+              <p>Off until you choose a folder. New files are copied in; nothing there is changed.</p>
+              <span class="tag">Automatic</span>
+            </article>
+            <article class="start">
+              <div class="tiles t-split" aria-hidden="true">
+                <span>Ask</span><span>SQL</span><span>CSV</span>
+              </div>
+              <h3>Ask and export</h3>
+              <p>Question your reviewed records and export CSV for QuickBooks or Xero.</p>
+              <span class="tag">Reports</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" class="section">
+        <div class="wrap">
+          <p class="kicker">Features</p>
+          <h2>Built for clearing a pile, not admiring a dashboard.</h2>
+          <div class="grid">
+            <article class="card">
+              <h3>Rules first, then you</h3>
+              <p>
+                Text is read from the PDF itself, or with Apple's on-device OCR for scans and
+                photos. Rules extract the fields, and anything uncertain goes to review.
+              </p>
+            </article>
+            <article class="card">
+              <h3>A table or a board</h3>
+              <p>
+                Work through a dense table with <kbd>J</kbd> <kbd>K</kbd> and <kbd>A</kbd>,
+                or drag cards across Needs review, Ready, and Approved.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Answers you can audit</h3>
+              <p>
+                Ask about spend and get a total from a bound SQL query over reviewed records,
+                with the query shown. No numbers made up by a language model.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Money stored as money</h3>
+              <p>
+                Amounts are integer minor units with a currency code. Currencies are totalled
+                separately, never silently converted.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Exports your accountant takes</h3>
+              <p>
+                Canonical, QuickBooks-shaped, and Xero-shaped CSV, guarded against spreadsheet
+                formula injection. You see where a file goes before it's written.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Reading in the background</h3>
+              <p>
+                Imports queue and are read one at a time. A crash or quit picks up where it
+                left off, and anything still waiting can be cancelled.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="measured" class="section">
+        <div class="wrap">
+          <p class="kicker">Measured</p>
+          <h2>Numbers from a real benchmark, not a demo.</h2>
+          <p class="lede small">
+            The latest recorded run on the 100 receipt photos in the CORD v2 test set, with Apple
+            Vision OCR and the rules on an Apple M2. The rules were tuned on a separate set of
+            receipts. Every receipt still went to review, so nothing wrong was accepted without a
+            person checking it.
+          </p>
+          <div class="stats">
+            <div class="stat"><span>Total</span><strong>0.77</strong><small>F1, up from 0.74</small></div>
+            <div class="stat"><span>Subtotal</span><strong>0.84</strong><small>F1, up from 0.78</small></div>
+            <div class="stat"><span>Tax</span><strong>0.79</strong><small>F1, up from 0.45</small></div>
+            <div class="stat"><span>Line items</span><strong>0.68</strong><small>F1, up from 0.01</small></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="privacy" class="section">
+        <div class="wrap privacy">
+          <div>
+            <p class="kicker">Privacy</p>
+            <h2>Nothing to upload, because nothing leaves.</h2>
+            <p class="lede small">
+              Source files, extracted records, and query results stay in one folder on your
+              Mac, readable only by your user account. Ledgerlens makes no network requests.
+            </p>
+          </div>
+          <ul class="checks">
+            <li>Files are admitted by their bytes, not their names, and capped at 25 MB.</li>
+            <li>PDF parsing and OCR run isolated and time-limited, so a hostile file can't hang the app.</li>
+            <li>Query values are bound parameters; query shape comes from a closed set.</li>
+            <li>Folder watching never follows links and only reads the one folder you chose.</li>
+            <li>
+              Files are not encrypted at rest yet.
+              <span class="soon">Planned</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="download" class="section">
+        <div class="wrap">
+          <p class="kicker">Download</p>
+          <h2>One app, on the devices you already use.</h2>
+          <p class="lede small">
+            Every copy reads and stores documents on its own device. Nothing is uploaded, so there
+            is no account to create.
+          </p>
+          <div class="downloads">
+            <article class="download">
+              <h3>Mac</h3>
+              <p>Everything: on-device OCR for scans and photos, and folder watching. macOS 13 or later.</p>
+              <a class="btn btn-primary btn-small" href="https://github.com/RendoslandDev/ledgerlens/releases/latest">Download for Mac</a>
+            </article>
+            <article class="download">
+              <h3>iPhone and iPad</h3>
+              <p>On-device OCR with the camera, Photos, or Files. Folder watching is Mac-only. iOS 16 or later.</p>
+              <span class="tag">Not published yet</span>
+            </article>
+            <article class="download">
+              <h3>Android</h3>
+              <p>Reads text PDFs. Photos and scans need the details entered by hand until OCR arrives.</p>
+              <span class="tag">Not published yet</span>
+            </article>
+            <article class="download">
+              <h3>Windows and Linux</h3>
+              <p>Planned and not yet tested. Without OCR there, they will read text PDFs only.</p>
+              <span class="tag">Not built yet</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="get" class="section">
+        <div class="wrap cta">
+          <h2>Try the preview.</h2>
+          <p class="lede small">
+            The preview is for the Mac. Download the <code>.dmg</code> for your Mac's chip
+            (<code>aarch64</code> for Apple silicon, <code>x64</code> for Intel), open it, and drag
+            Ledgerlens to Applications.
+          </p>
+          <p class="lede small">
+            The preview isn't notarized by Apple yet, so macOS blocks the first launch. Open
+            Ledgerlens once and close the warning, then go to System Settings › Privacy &amp; Security
+            and choose <b>Open Anyway</b>. After that it opens normally.
+          </p>
+          <div class="cta-actions">
+            <a class="btn btn-primary" href="https://github.com/RendoslandDev/ledgerlens/releases/latest">Download for Mac</a>
+            <a class="btn" href="https://github.com/RendoslandDev/ledgerlens/issues">Report a problem</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-inner">
+        <span class="wordmark small"><img src="favicon.svg" alt="" width="18" height="18" /> Ledgerlens</span>
+        <span>Local-first paperwork, read on your machine.</span>
+      </div>
+    </footer>
+
+    <script>
+      document.querySelector(".theme-toggle").addEventListener("click", () => {
+        const root = document.documentElement;
+        const dark =
+          root.dataset.theme === "dark" ||
+          (!root.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+        root.dataset.theme = dark ? "light" : "dark";
+        try {
+          localStorage.setItem("ledgerlens-site-theme", root.dataset.theme);
+        } catch {}
+      });
+    </script>
+  </body>
+</html>

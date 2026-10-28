@@ -1,0 +1,10 @@
+[package]
+name = "ll-render"
+description = "Page rendering seam and image preprocessing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ll-core.workspace = true
+ll-infer.workspace = true

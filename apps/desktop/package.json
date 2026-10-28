@@ -1,0 +1,32 @@
+{
+  "name": "ledgerlens-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "tauri": "tauri",
+    "bindings": "cd src-tauri && LEDGERLENS_WRITE_BINDINGS=1 cargo test --lib bindings_are_current",
+    "check:bindings": "cd src-tauri && cargo test --lib bindings",
+    "check": "npm run check:bindings && tsc -b"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.2.6",
+    "@fontsource-variable/space-grotesk": "^5.2.6",
+    "@ledgerlens/bindings": "file:../../packages/bindings",
+    "@tauri-apps/api": "^2.8.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5"
+  }
+}

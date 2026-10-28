@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged by Tauri into the iOS app's Info.plist. -->
+<plist version="1.0">
+<dict>
+	<!-- The Add button can take a photo of a receipt; nothing leaves the device. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of a receipt or invoice. The photo is read and stored on this device only.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose photos of receipts or invoices. They are read and stored on this device only.</string>
+	<!-- CSV exports go to the app's Documents folder, which the Files app shows. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<!-- No custom or non-exempt encryption: the app makes no network requests. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>

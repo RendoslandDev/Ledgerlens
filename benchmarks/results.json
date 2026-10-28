@@ -1,0 +1,174 @@
+{
+  "runs": [
+    {
+      "dataset": {
+        "file": "test-00000-of-00001.parquet",
+        "licence": "CC BY 4.0",
+        "name": "CORD v2",
+        "receipts_in_file": 100,
+        "receipts_scored": 100,
+        "sha256": "51c65f1788faff392abe2a0b55b023eb23e9be551c509138eaa3a832514224e7",
+        "source": "https://huggingface.co/datasets/naver-clova-ix/cord-v2",
+        "split": "test"
+      },
+      "date": "2026-10-28",
+      "hardware": {
+        "arch": "aarch64",
+        "build": "release",
+        "cores": 8,
+        "cpu": "Apple M2",
+        "memory_gb": 8.0,
+        "os": "macOS 26.2"
+      },
+      "id": "2026-10-28-cord-v2-test-rules-vision",
+      "latency_ms_per_receipt": {
+        "max": 688.6,
+        "mean": 178.2,
+        "p50": 147.2,
+        "p95": 344.9
+      },
+      "peak_rss_mb_including_dataset": 684.8,
+      "results": {
+        "documents": {
+          "all_labelled_fields_correct": 42,
+          "count": 100,
+          "needs_review": 100,
+          "ready_and_correct": 0,
+          "ready_precision": null,
+          "ready_without_review": 0,
+          "unreadable": 0
+        },
+        "fields": {
+          "subtotal": {
+            "f1": 0.7818,
+            "false_negative": 22,
+            "false_positive": 2,
+            "precision": 0.9556,
+            "recall": 0.6615,
+            "true_positive": 43
+          },
+          "tax": {
+            "f1": 0.4528,
+            "false_negative": 29,
+            "false_positive": 0,
+            "precision": 1.0,
+            "recall": 0.2927,
+            "true_positive": 12
+          },
+          "total": {
+            "f1": 0.7429,
+            "false_negative": 29,
+            "false_positive": 16,
+            "precision": 0.8025,
+            "recall": 0.6915,
+            "true_positive": 65
+          }
+        },
+        "line_item_prices": {
+          "f1": 0.0081,
+          "false_negative": 245,
+          "false_positive": 1,
+          "precision": 0.5,
+          "recall": 0.0041,
+          "true_positive": 1
+        }
+      },
+      "system": {
+        "default_currency": "USD",
+        "ledgerlens": "0.1.0",
+        "models": [],
+        "ocr": "Apple Vision (on-device)",
+        "pipeline": "ll-app import: PDF text layer or on-device OCR, then the ll-extract rules tier",
+        "review_threshold": 0.85,
+        "scoring": "Amounts compared as numbers in hundredths of the currency unit; currency is not scored (CORD has no currency labels). A wrong value counts as one false positive and one false negative. Line-item prices are matched as a multiset."
+      },
+      "wall_clock_seconds": 18.2
+    },
+    {
+      "dataset": {
+        "file": "test-00000-of-00001.parquet",
+        "licence": "CC BY 4.0",
+        "name": "CORD v2",
+        "receipts_in_file": 100,
+        "receipts_scored": 100,
+        "sha256": "51c65f1788faff392abe2a0b55b023eb23e9be551c509138eaa3a832514224e7",
+        "source": "https://huggingface.co/datasets/naver-clova-ix/cord-v2",
+        "split": "test"
+      },
+      "date": "2026-10-28",
+      "hardware": {
+        "arch": "aarch64",
+        "build": "release",
+        "cores": 8,
+        "cpu": "Apple M2",
+        "memory_gb": 8.0,
+        "os": "macOS 26.2"
+      },
+      "id": "2026-10-28-cord-v2-test-rules-vision-2",
+      "latency_ms_per_receipt": {
+        "max": 820.3,
+        "mean": 208.2,
+        "p50": 171.4,
+        "p95": 378.4
+      },
+      "note": "Rules v2: IDR and the Rp symbol, OCR-split thousands rejoined, item-count and payment cells excluded from totals, Indonesian tax/subtotal labels (PB1, Pajak, PPN, SUBTTL, Net Amt), headerless receipt line items. Tuned on the CORD v2 validation split only; this test split was held out.",
+      "peak_rss_mb_including_dataset": 670.2,
+      "results": {
+        "documents": {
+          "all_labelled_fields_correct": 57,
+          "count": 100,
+          "needs_review": 100,
+          "ready_and_correct": 0,
+          "ready_precision": null,
+          "ready_without_review": 0,
+          "unreadable": 0
+        },
+        "fields": {
+          "subtotal": {
+            "f1": 0.8448,
+            "false_negative": 16,
+            "false_positive": 2,
+            "precision": 0.9608,
+            "recall": 0.7538,
+            "true_positive": 49
+          },
+          "tax": {
+            "f1": 0.7887,
+            "false_negative": 13,
+            "false_positive": 2,
+            "precision": 0.9333,
+            "recall": 0.6829,
+            "true_positive": 28
+          },
+          "total": {
+            "f1": 0.7692,
+            "false_negative": 29,
+            "false_positive": 10,
+            "precision": 0.8667,
+            "recall": 0.6915,
+            "true_positive": 65
+          }
+        },
+        "line_item_prices": {
+          "f1": 0.6782,
+          "false_negative": 109,
+          "false_positive": 21,
+          "precision": 0.8671,
+          "recall": 0.5569,
+          "true_positive": 137
+        }
+      },
+      "system": {
+        "default_currency": "USD",
+        "ledgerlens": "0.1.0",
+        "models": [],
+        "ocr": "Apple Vision (on-device)",
+        "pipeline": "ll-app import: PDF text layer or on-device OCR, then the ll-extract rules tier",
+        "review_threshold": 0.85,
+        "scoring": "Amounts compared as numbers in hundredths of the currency unit; currency is not scored (CORD has no currency labels). A wrong value counts as one false positive and one false negative. Line-item prices are matched as a multiset."
+      },
+      "wall_clock_seconds": 21.2
+    }
+  ],
+  "schema_version": 1
+}
