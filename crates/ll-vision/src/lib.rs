@@ -122,7 +122,9 @@ impl OcrEngine for VisionEngine {
     }
 }
 
-/// Size of a page rendered at `dpi`, scaled down to fit [`MAX_PAGE_PIXELS`].
+/// Size of a page rendered at `dpi`, scaled down to fit [`MAX_PAGE_PIXELS`]. Only the Quartz
+/// renderer uses it; tests cover it on every platform.
+#[cfg(any(target_os = "macos", target_os = "ios", test))]
 pub(crate) fn fit_page(width_pt: f64, height_pt: f64, dpi: u32) -> Option<(usize, usize)> {
     if !(width_pt.is_finite() && height_pt.is_finite()) || width_pt <= 0.0 || height_pt <= 0.0 {
         return None;
