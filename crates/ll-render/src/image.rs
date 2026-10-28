@@ -54,7 +54,7 @@ impl Image {
     pub fn to_gray(&self) -> Image {
         if self.channels == 1 { return self.clone(); }
         let mut out = Vec::with_capacity(self.width * self.height);
-        for p in self.data.chunks_exact(3) {
+        for p in self.data.as_chunks::<3>().0 {
             // ITU-R BT.601 luma, integer math
             out.push(((299 * p[0] as u32 + 587 * p[1] as u32 + 114 * p[2] as u32) / 1000) as u8);
         }

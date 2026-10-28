@@ -35,7 +35,9 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
 
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned so a new stable release (and its new clippy lints) can't break CI or a release by
+      # itself; bump deliberately, together with the local toolchain.
+      - uses: dtolnay/rust-toolchain@1.96.0
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
