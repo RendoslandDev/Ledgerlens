@@ -7,8 +7,11 @@ use std::{fs, path::PathBuf, str::FromStr};
 const INVOICE_PDF: &[u8] = include_bytes!("fixtures/invoice-cups.pdf");
 /// A real, decodable PNG with nothing on it: the manual-entry path.
 const PNG: &[u8] = include_bytes!("fixtures/blank.png");
-/// A receipt rendered by WebKit, then saved as a compressed JPEG and as an image-only PDF.
+/// A receipt rendered by WebKit, then saved as a compressed JPEG and as an image-only PDF. Only
+/// the OCR tests read them, and OCR is built for macOS.
+#[cfg(target_os = "macos")]
 const RECEIPT_JPEG: &[u8] = include_bytes!("../../ll-vision/tests/fixtures/receipt.jpg");
+#[cfg(target_os = "macos")]
 const SCANNED_PDF: &[u8] = include_bytes!("../../ll-vision/tests/fixtures/scanned.pdf");
 
 struct Workspace {
