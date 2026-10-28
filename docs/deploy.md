@@ -52,7 +52,7 @@ are free for a site this size and give HTTPS.
 account. `.github/workflows/site.yml` publishes `apps/web` on every push to `main` that touches it.
 
 1. Give Ledgerlens its own GitHub repository (you). It currently lives inside your home-folder
-   repository. The site and README link to `RendoslandDev/ledgerlens`; if you pick another name,
+   repository. The site and README link to `RendoslandDev/Ledgerlens`; if you pick another name,
    change those links (three in `apps/web/index.html`, two in `README.md`).
 2. Settings › Pages › Source: **GitHub Actions** (you).
 3. Push to `main`, or run **Actions › Publish website › Run workflow**. The site appears at

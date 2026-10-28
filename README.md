@@ -12,7 +12,7 @@ Nothing is uploaded and there is no account. Ledgerlens makes no network request
 
 Requires macOS 13 (Ventura) or later.
 
-1. From the [latest release](https://github.com/RendoslandDev/ledgerlens/releases/latest), download
+1. From the [latest release](https://github.com/RendoslandDev/Ledgerlens/releases/latest), download
    the `.dmg` for your Mac: `aarch64` for Apple silicon (M1 and later), `x64` for Intel.
 2. Open the `.dmg` and drag **Ledgerlens** into **Applications**.
 3. Open Ledgerlens. The preview isn't notarized by Apple yet, so macOS stops the first launch with
@@ -40,7 +40,7 @@ that folder and the app.
 
 ## Report a problem
 
-Open an [issue](https://github.com/RendoslandDev/ledgerlens/issues) with what you did, what you
+Open an [issue](https://github.com/RendoslandDev/Ledgerlens/issues) with what you did, what you
 expected, and your macOS version. Please don't attach real invoices; describe the layout or share
 a redacted copy instead.
 
