@@ -1,0 +1,14 @@
+# Check out text with LF on every platform, so generated files (the TypeScript bindings), shell
+# scripts, and test fixtures are byte-identical on Windows, Linux, and macOS.
+* text=auto eol=lf
+
+# Windows batch files need CRLF.
+*.bat text eol=crlf
+
+# Never touch binary assets and fixtures.
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.pdf binary
+*.jar binary
