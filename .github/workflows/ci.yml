@@ -18,6 +18,9 @@ jobs:
       matrix:
         platform: [macos-latest, windows-latest, ubuntu-22.04]
     runs-on: ${{ matrix.platform }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -51,23 +54,23 @@ jobs:
           npm run build
 
       - name: Core tests
-        run: cargo test --workspace --locked
+        run: .github/scripts/annotate.sh "Core tests" cargo test --workspace --locked
 
       - name: Core lints
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+        run: .github/scripts/annotate.sh "Core lints" cargo clippy --workspace --all-targets --locked -- -D warnings
 
       - name: App tests (includes the bindings drift check)
         working-directory: apps/desktop/src-tauri
-        run: cargo test --locked
+        run: ../../../.github/scripts/annotate.sh "App tests" cargo test --locked
 
       - name: App lints
         working-directory: apps/desktop/src-tauri
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: ../../../.github/scripts/annotate.sh "App lints" cargo clippy --all-targets --locked -- -D warnings
 
       - name: Build installers
         if: runner.os != 'macOS'
         working-directory: apps/desktop
-        run: npx tauri build
+        run: ../../.github/scripts/annotate.sh "Build installers" npx tauri build
 
       - name: Smoke test (Windows, installed app over IPC)
         if: runner.os == 'Windows'
