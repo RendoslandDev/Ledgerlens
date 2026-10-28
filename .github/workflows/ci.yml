@@ -76,16 +76,7 @@ jobs:
 
       - name: Smoke test (Windows, installed app over IPC)
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $installer = Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
-          Write-Host "installing $($installer.Name)"
-          Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait
-          $exe = Get-ChildItem "$env:LOCALAPPDATA\Ledgerlens" -Filter *.exe -Recurse |
-            Where-Object { $_.Name -notlike 'uninstall*' } | Select-Object -First 1
-          if (-not $exe) { throw "the installer did not put the app in $env:LOCALAPPDATA\Ledgerlens" }
-          Write-Host "launching $($exe.FullName)"
-          node apps/desktop/scripts/smoke-ipc.mjs $exe.FullName crates/ll-app/tests/fixtures/invoice-cups.pdf
+        run: .github/scripts/annotate.sh "Windows smoke test" pwsh -NoProfile -File .github/scripts/smoke-windows.ps1
 
       - name: Smoke test (Linux, installed .deb launches)
         if: runner.os == 'Linux'

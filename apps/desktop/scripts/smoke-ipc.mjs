@@ -26,15 +26,20 @@ app.on("exit", (code) => (exited = code));
 
 async function main() {
   let page;
+  let lastSeen = "nothing yet";
   for (let attempt = 0; attempt < 60 && !page; attempt++) {
     if (exited !== null) throw new Error(`the app exited early with code ${exited}`);
     await wait(1000);
     try {
       const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+      lastSeen = `targets ${JSON.stringify(targets.map(({ type, url }) => ({ type, url })))}`;
       page = targets.find((target) => target.type === "page");
-    } catch {}
+    } catch (error) {
+      lastSeen = `debug port: ${error.cause?.code ?? error.message}`;
+    }
+    if (attempt % 10 === 9) console.log(`waiting for the page (${attempt + 1} s): ${lastSeen}`);
   }
-  if (!page) throw new Error("no WebView2 page appeared within 60 s");
+  if (!page) throw new Error(`no WebView2 page appeared within 60 s; last: ${lastSeen}`);
   console.log(`page: ${page.url}`);
 
   const socket = new WebSocket(page.webSocketDebuggerUrl);
