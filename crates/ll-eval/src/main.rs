@@ -204,7 +204,15 @@ fn latency_summary(latencies: &mut [f64]) -> serde_json::Value {
     })
 }
 
+/// Peak resident memory of this process (the whole run, including the parquet reader). Not
+/// measured on Windows, which has no `getrusage`; the benchmark is recorded on a Mac.
+#[cfg(not(unix))]
+fn peak_rss_mb() -> Option<f64> {
+    None
+}
+
 /// Peak resident memory of this process (the whole run, including the parquet reader).
+#[cfg(unix)]
 fn peak_rss_mb() -> Option<f64> {
     let mut usage = std::mem::MaybeUninit::<libc::rusage>::zeroed();
     // SAFETY: `getrusage` writes a `rusage` into the pointer it is given and reads nothing else.

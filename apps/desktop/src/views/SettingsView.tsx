@@ -136,7 +136,7 @@ export function SettingsView({
         <section className="panel watch-panel" aria-labelledby="watch-heading">
           <div className="section-label">
             <span id="watch-heading">Watched folder</span>
-            <span className="tag">Desktop only</span>
+            <span className="tag">Mac only</span>
           </div>
           <p className="dim">
             Watching a folder for new documents needs the Ledgerlens desktop app on a Mac. Here,

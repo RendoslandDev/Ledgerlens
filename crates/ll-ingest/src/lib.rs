@@ -178,6 +178,14 @@ pub fn read_regular_file(path: &Path, max_bytes: u64) -> Result<Vec<u8>> {
         use std::os::unix::fs::OpenOptionsExt;
         options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
     }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // FILE_FLAG_OPEN_REPARSE_POINT: a symlink or junction opens as itself, so the regular-file
+        // check below refuses it instead of reading its target.
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
     let file = options.open(path)?;
     if !file.metadata()?.is_file() {
         return Err(Error::Invalid("not a regular file".into()));
@@ -285,13 +293,19 @@ mod tests {
             std::os::unix::fs::symlink(outside.join("private.pdf"), root.join("link.pdf")).unwrap();
             std::os::unix::fs::symlink(&outside, root.join("linked-folder")).unwrap();
         }
+        // Creating symlinks on Windows needs administrator rights or Developer Mode (CI has both).
+        #[cfg(windows)]
+        {
+            std::os::windows::fs::symlink_file(outside.join("private.pdf"), root.join("link.pdf")).unwrap();
+            std::os::windows::fs::symlink_dir(&outside, root.join("linked-folder")).unwrap();
+        }
 
         let scan = scan_folder(&root, &POLICY).unwrap();
         let names: Vec<_> = scan.files.iter().map(|file| file.path.strip_prefix(&root).unwrap().to_path_buf()).collect();
         assert_eq!(names, [PathBuf::from("2026/c.png"), PathBuf::from("a.pdf")]);
         assert_eq!(scan.skipped.too_large, 1);
         assert_eq!(scan.skipped.too_deep, 1, "2026/october is below max_depth");
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         assert_eq!(scan.skipped.symlinks, 2);
         assert!(!scan.truncated);
 
@@ -299,7 +313,7 @@ mod tests {
         assert_eq!(limited.files.len(), 1);
         assert!(limited.truncated);
 
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         {
             assert!(check_folder(&root.join("linked-folder")).is_err(), "a linked root is refused");
             assert!(read_regular_file(&root.join("link.pdf"), 100).is_err(), "links are not opened");
