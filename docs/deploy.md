@@ -55,8 +55,11 @@ account. `.github/workflows/site.yml` publishes `apps/web` on every push to `mai
    repository. The site and README link to `RendoslandDev/ledgerlens`; if you pick another name,
    change those links (three in `apps/web/index.html`, two in `README.md`).
 2. Settings › Pages › Source: **GitHub Actions** (you).
-3. Push to `main`. The site appears at `https://rendoslanddev.github.io/ledgerlens/`.
-4. Optional: add a custom domain under Settings › Pages (you).
+3. Push to `main`, or run **Actions › Publish website › Run workflow**. The site appears at
+   `https://rendoslanddev.github.io/Ledgerlens/`. The path matches the repository name exactly,
+   including case: `/ledgerlens/` is a 404.
+4. Optional: add a custom domain under Settings › Pages (you). Only enter a domain you own and
+   have pointed at GitHub; GitHub redirects every visitor to whatever domain is entered there.
 
 **Cloudflare Pages or Netlify** also work: no build command, output directory `apps/web`.
 

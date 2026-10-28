@@ -49,18 +49,31 @@ jobs:
         run: npm ci
         working-directory: apps/desktop
 
-      - uses: tauri-apps/tauri-action@v0
+      # macOS signing and notarization. An unset secret still arrives as an empty variable, and
+      # the bundler then tries to import an empty certificate and fails, so only secrets that have a
+      # value are exported. With none set, the build is ad-hoc signed ("-" in tauri.conf.json) and
+      # not notarized: it runs, but macOS asks the user to approve it on first launch.
+      - name: Export Apple signing secrets that are set
+        if: matrix.platform == 'macos-latest'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS signing and notarization. Without these secrets the build is ad-hoc signed and not
-          # notarized: it runs, but macOS asks the user to approve it on first launch.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # Unset secrets arrive as empty strings; fall back to ad-hoc signing ("-") explicitly.
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY \
+                      APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              { echo "$name<<__LEDGERLENS_EOF__"; echo "$value"; echo "__LEDGERLENS_EOF__"; } >> "$GITHUB_ENV"
+            fi
+          done
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
