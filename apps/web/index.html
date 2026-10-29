@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#070707" media="(prefers-color-scheme: dark)" />
     <meta
       name="description"
-      content="Ledgerlens reads invoices and receipts on your own Mac, then lets you review, query, and export them. Nothing is uploaded."
+      content="Ledgerlens reads invoices and receipts on your own computer, then lets you review, query, and export them. Nothing is uploaded."
     />
     <title>Ledgerlens · Paperwork, read locally</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
@@ -54,11 +54,11 @@
       <section class="hero">
         <div class="wrap hero-head">
           <span class="logo-tile"><img src="favicon.svg" alt="" width="34" height="34" /></span>
-          <p class="pill"><span class="pill-dot"></span> Early preview · macOS</p>
+          <p class="pill"><span class="pill-dot"></span> Early preview · Mac, Windows, Linux, Android</p>
           <h1>Your paperwork,<br />read on your own machine.</h1>
           <p class="lede">
             Ledgerlens pulls vendors, dates, totals, and line items out of invoices and receipts
-            on your Mac, sends anything it isn't sure about to review, and turns the rest
+            on your computer, sends anything it isn't sure about to review, and turns the rest
             into records you can query and export.
           </p>
           <div class="hero-actions">
@@ -157,7 +157,7 @@
               </div>
               <h3>Watch a folder</h3>
               <p>Off until you choose a folder. New files are copied in; nothing there is changed.</p>
-              <span class="tag">Automatic</span>
+              <span class="tag">Mac only</span>
             </article>
             <article class="start">
               <div class="tiles t-split" aria-hidden="true">
@@ -179,8 +179,8 @@
             <article class="card">
               <h3>Rules first, then you</h3>
               <p>
-                Text is read from the PDF itself, or with Apple's on-device OCR for scans and
-                photos. Rules extract the fields, and anything uncertain goes to review.
+                Text is read from the PDF itself or, on a Mac, iPhone, or iPad, with Apple's
+                on-device OCR for scans and photos. Rules extract the fields, and anything uncertain goes to review.
               </p>
             </article>
             <article class="card">
@@ -248,7 +248,7 @@
             <h2>Nothing to upload, because nothing leaves.</h2>
             <p class="lede small">
               Source files, extracted records, and query results stay in one folder on your
-              Mac, readable only by your user account. Ledgerlens makes no network requests.
+              computer, under your user account. Ledgerlens makes no network requests.
             </p>
           </div>
           <ul class="checks">
@@ -285,13 +285,16 @@
             </article>
             <article class="download">
               <h3>Android</h3>
-              <p>Reads text PDFs. Photos and scans need the details entered by hand until OCR arrives.</p>
-              <span class="tag">Not published yet</span>
+              <p>Reads text PDFs. Photos and scans need the details entered by hand until OCR arrives.
+              Android 7 or later; installed from the download, not Google Play yet.</p>
+              <a class="btn btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest">Download the APK</a>
             </article>
             <article class="download">
               <h3>Windows and Linux</h3>
-              <p>Planned and not yet tested. Without OCR there, they will read text PDFs only.</p>
-              <span class="tag">Not built yet</span>
+              <p>Reads text PDFs; photos and scans need the details entered by hand until OCR
+              arrives. Windows 10 or 11; Linux from Ubuntu 22.04 or similar. Newer and less tried
+              than the Mac app.</p>
+              <a class="btn btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest">Download</a>
             </article>
           </div>
         </div>
@@ -301,17 +304,21 @@
         <div class="wrap cta">
           <h2>Try the preview.</h2>
           <p class="lede small">
-            The preview is for the Mac. Download the <code>.dmg</code> for your Mac's chip
-            (<code>aarch64</code> for Apple silicon, <code>x64</code> for Intel), open it, and drag
-            Ledgerlens to Applications.
+            <b>Mac:</b> download the <code>.dmg</code> for your chip (<code>aarch64</code> for Apple
+            silicon, <code>x64</code> for Intel) and drag Ledgerlens to Applications. It isn't
+            notarized yet, so macOS blocks the first launch: close the warning, then choose
+            <b>Open Anyway</b> in System Settings › Privacy &amp; Security.
           </p>
           <p class="lede small">
-            The preview isn't notarized by Apple yet, so macOS blocks the first launch. Open
-            Ledgerlens once and close the warning, then go to System Settings › Privacy &amp; Security
-            and choose <b>Open Anyway</b>. After that it opens normally.
+            <b>Windows:</b> run the <code>-setup.exe</code>. It isn't code-signed yet, so if
+            SmartScreen appears, choose <b>More info</b>, then <b>Run anyway</b>.
+            <b>Linux:</b> install the <code>.deb</code> or <code>.rpm</code>, or run the
+            <code>.AppImage</code>.
+            <b>Android:</b> open the <code>.apk</code> on your phone and allow installing from your
+            browser or Files when Android asks.
           </p>
           <div class="cta-actions">
-            <a class="btn btn-primary" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest">Download for Mac</a>
+            <a class="btn btn-primary" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest">Download the preview</a>
             <a class="btn" href="https://github.com/RendoslandDev/Ledgerlens/issues">Report a problem</a>
           </div>
         </div>
