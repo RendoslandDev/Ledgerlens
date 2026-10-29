@@ -5,12 +5,15 @@ import { initials } from "../components/Rail";
 import { money, monthLabel } from "../format";
 
 export function ReportsView({
+  pro,
   report,
   exportCsv,
   workspaceName,
   since,
   defaultCurrency,
 }: {
+  /** Offers the OFX statement export (Ledgerlens Pro). */
+  pro: boolean;
   report: Report | null;
   exportCsv: (format: ExportFormat) => void;
   workspaceName: string;
@@ -138,7 +141,7 @@ export function ReportsView({
             <option value="canonical">Ledgerlens CSV</option>
             <option value="quickbooks">QuickBooks CSV</option>
             <option value="xero">Xero CSV</option>
-            <option value="ofx">Bank statements (OFX)</option>
+            {pro && <option value="ofx">Bank statements (OFX)</option>}
           </select>
           <button className="button" onClick={() => exportCsv(format)}>
             <ArrowDownToLine size={14} aria-hidden="true" /> Export

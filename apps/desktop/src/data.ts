@@ -53,7 +53,8 @@ export const fieldLabels: Record<FieldName, string> = {
 };
 
 /** The same field reads differently on a statement or a contract. */
-export function fieldLabel(name: FieldName, kind: DocKind): string {
+export function fieldLabel(name: FieldName, kind: DocKind, pro: boolean): string {
+  if (!pro) return fieldLabels[name];
   if (kind === "statement" && name === "vendor") return "Bank";
   if (kind === "statement" && name === "doc_date") return "Issued";
   if (kind === "contract" && name === "doc_date") return "Starts";
@@ -73,9 +74,10 @@ const invoiceFields: FieldName[] = [
   "category",
 ];
 
-/** The fields shown for each kind of document, in reading order. */
-export function editableFields(kind: DocKind): FieldName[] {
-  switch (kind) {
+/** The fields shown for each kind of document, in reading order. Without Pro, statements and
+ * contracts are read as invoices, so they show the invoice fields. */
+export function editableFields(kind: DocKind, pro: boolean): FieldName[] {
+  switch (pro ? kind : "invoice") {
     case "statement":
       return ["vendor", "account_number", "period_start", "period_end", "currency", "opening_balance", "closing_balance"];
     case "contract":
@@ -86,8 +88,8 @@ export function editableFields(kind: DocKind): FieldName[] {
 }
 
 /** Fields that must be filled before a document of this kind can leave review (mirrors the backend). */
-export function requiredFields(kind: DocKind): FieldName[] {
-  switch (kind) {
+export function requiredFields(kind: DocKind, pro: boolean): FieldName[] {
+  switch (pro ? kind : "invoice") {
     case "statement":
       return ["vendor", "period_end", "opening_balance", "closing_balance"];
     case "contract":

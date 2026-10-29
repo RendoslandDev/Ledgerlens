@@ -79,6 +79,12 @@ fails CI when they drift. Download: crates `tauri-specta`/`specta` (source crate
 
 ## Statements, contracts, and OFX — done 2026-10-29
 
+Planned as **Ledgerlens Pro**, a paid tier after the App Store launch. Until then it is switched
+off in every build: `ll-app` has a `pro` feature (off by default; the desktop crate forwards it,
+`npx tauri dev --features pro`), and without it statements and contracts keep their type but are
+read as invoices, approval and OFX export say they're part of Pro, and the UI hides their
+fields. Purchase and licensing are not built yet. The tests run both ways (`App::with_pro`).
+
 - **Bank statements:** bank, account (last four digits only), period, opening and closing
   balances, and one transaction per row (`ll-extract/src/statement.rs`, `transactions` table).
   A row's direction comes from the running balance; opening + transactions = closing is

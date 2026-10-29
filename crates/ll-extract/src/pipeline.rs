@@ -92,6 +92,9 @@ pub struct Pipeline {
     review_threshold: f32,
     default_currency: Currency,
     today: Date,
+    /// Statement and contract rules (Ledgerlens Pro). Off: those documents keep their kind but
+    /// are read, validated, and routed with the invoice rules, as before Pro existed.
+    pro_kinds: bool,
 }
 
 impl Pipeline {
@@ -104,11 +107,24 @@ impl Pipeline {
             review_threshold: cfg.pipeline.escalate_below,
             default_currency: Currency::new(&cfg.pipeline.default_currency)?,
             today: today_utc(),
+            pro_kinds: false,
         })
     }
 
     pub fn with_extractor(mut self, e: Box<dyn FieldExtractor>) -> Self { self.extractors.push(e); self }
     pub fn with_scaler(mut self, s: PlattScaler) -> Self { self.scaler = s; self }
+    /// Turns the statement and contract rules on or off (see [`Pipeline::rules_kind`]).
+    pub fn with_pro_kinds(mut self, on: bool) -> Self { self.pro_kinds = on; self }
+
+    /// The kind whose rules read, validate, and route a document of `kind`: itself, or the
+    /// invoice rules for statements and contracts while Pro is off.
+    pub fn rules_kind(&self, kind: DocKind) -> DocKind {
+        match kind {
+            DocKind::Statement | DocKind::Contract if !self.pro_kinds => DocKind::Other,
+            kind => kind,
+        }
+    }
+
     /// Pins "today" so validation is reproducible in tests and replays.
     pub fn with_today(mut self, d: Date) -> Self { self.today = d; self }
 
@@ -122,7 +138,8 @@ impl Pipeline {
     /// own rules.
     pub fn run_as(&self, text: &str, kind: DocKind) -> Extraction {
         let mut transactions = Vec::new();
-        let raw = match kind {
+        let rules = self.rules_kind(kind);
+        let raw = match rules {
             DocKind::Statement => {
                 let (fields, rows) = statement::extract_statement(text, self.default_currency);
                 transactions = rows;
@@ -145,13 +162,13 @@ impl Pipeline {
             .and_then(|f| f.value.as_text())
             .and_then(|t| Currency::new(t).ok())
             .unwrap_or(self.default_currency);
-        let line_items = match kind {
+        let line_items = match rules {
             DocKind::Invoice | DocKind::Receipt | DocKind::Other => rules::extract_line_items(text, cur),
             DocKind::Statement | DocKind::Contract => Vec::new(),
         };
-        let issues = validate_for(kind, &fields, &line_items, &transactions, self.today);
+        let issues = validate_for(rules, &fields, &line_items, &transactions, self.today);
         adjust_with_validation(&mut fields, &issues);
-        let review = needs_review(&fields, required_fields(kind), self.review_threshold);
+        let review = needs_review(&fields, required_fields(rules), self.review_threshold);
         let status = decide_status(&review, &issues);
         Extraction { kind, fields, merged, line_items, transactions, issues, review, status }
     }
@@ -175,14 +192,15 @@ impl Pipeline {
         store.replace_line_items(doc, &ex.line_items)?;
         store.replace_transactions(doc, &ex.transactions)?;
         let items = store.line_items(doc)?;
-        let issues = validate_for(ex.kind, &combined, &items, &ex.transactions, self.today);
+        let rules = self.rules_kind(ex.kind);
+        let issues = validate_for(rules, &combined, &items, &ex.transactions, self.today);
         adjust_with_validation(&mut combined, &issues);
 
         for f in combined.iter().filter(|f| f.tier != Tier::Human) { store.upsert_field(doc, f)?; }
         store.set_kind(doc, ex.kind)?;
         store.refresh_invoice(doc)?;
 
-        let review = needs_review(&combined, required_fields(ex.kind), self.review_threshold);
+        let review = needs_review(&combined, required_fields(rules), self.review_threshold);
         let status = decide_status(&review, &issues);
         store.set_status(doc, status)?;
         Ok(status)
@@ -390,7 +408,7 @@ mod tests {
     fn a_reconciling_statement_is_ready_and_its_rows_are_stored() {
         let mut store = Store::open_in_memory().unwrap();
         let id = insert(&store, "s1");
-        let p = pipeline().with_today(Date::new(2026, 4, 2).unwrap());
+        let p = pipeline().with_today(Date::new(2026, 4, 2).unwrap()).with_pro_kinds(true);
         let ex = p.run(STATEMENT);
         assert_eq!(ex.kind, DocKind::Statement);
         assert!(ex.issues.is_empty(), "{:?}", ex.issues);
@@ -408,10 +426,19 @@ mod tests {
 
     #[test]
     fn a_person_can_read_a_document_as_another_kind() {
-        let ex = pipeline().run_as(CLEAN, DocKind::Contract);
+        let ex = pipeline().with_pro_kinds(true).run_as(CLEAN, DocKind::Contract);
         assert_eq!(ex.kind, DocKind::Contract);
         assert!(ex.line_items.is_empty());
         assert!(ex.review.contains(&FieldName::Parties));
+    }
+
+    #[test]
+    fn without_pro_statements_are_read_with_the_invoice_rules() {
+        let ex = pipeline().run(STATEMENT);
+        assert_eq!(ex.kind, DocKind::Statement, "the kind is still recognised");
+        assert!(ex.transactions.is_empty());
+        assert!(!ex.fields.iter().any(|f| f.name == FieldName::ClosingBalance));
+        assert!(ex.review.contains(&FieldName::Total), "routed by the invoice fields");
     }
 
     #[test]

@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#070707" media="(prefers-color-scheme: dark)" />
     <meta
       name="description"
-      content="Ledgerlens reads invoices and receipts on your own device, with bank statements and contracts next, then lets you review, query, and export them. Nothing is uploaded."
+      content="Ledgerlens reads invoices and receipts on your own device, then lets you review, query, and export them. Nothing is uploaded."
     />
     <title>Ledgerlens · Paperwork, read locally</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
@@ -57,11 +57,8 @@
           <p class="pill"><span class="pill-dot"></span> Early preview · Mac, Windows, Linux, Android</p>
           <h1>Your paperwork,<br />read on your own machine.</h1>
           <p class="lede">
-            Ledgerlens reads invoices<span data-until="0.1.1"> and receipts</span><span
-            data-since="0.1.1" hidden>, receipts, bank statements, and contracts</span> on your
-            own device<span data-until="0.1.1">, with
-            bank statements and contracts coming in 0.1.1</span>. It sends anything it isn't sure
-            about to review and turns the rest into records you can query and export to
+            Ledgerlens reads invoices and receipts on your own device. It sends anything it isn't
+            sure about to review and turns the rest into records you can query and export to
             QuickBooks or Xero.
           </p>
           <div class="hero-actions">
@@ -167,7 +164,7 @@
                 <span>Ask</span><span>SQL</span><span>CSV</span>
               </div>
               <h3>Ask and export</h3>
-              <p>Question your reviewed records and export CSV for QuickBooks or Xero<span data-since="0.1.1" hidden>, or OFX for bank statements</span>.</p>
+              <p>Question your reviewed records and export CSV for QuickBooks or Xero.</p>
               <span class="tag">Reports</span>
             </article>
           </div>
@@ -187,7 +184,7 @@
               </p>
             </article>
             <article class="card">
-              <span class="tag soon" data-until="0.1.1">Coming in 0.1.1</span>
+              <span class="tag soon">Pro · coming soon</span>
               <h3>Statements that must add up</h3>
               <p>
                 Every transaction is read with its direction taken from the running balance. If
@@ -195,11 +192,12 @@
               </p>
             </article>
             <article class="card">
-              <span class="tag soon" data-until="0.1.1">Coming in 0.1.1</span>
+              <span class="tag soon">Pro · coming soon</span>
               <h3>Contracts, before they renew</h3>
               <p>
                 Parties, start and end dates, notice period, and auto-renewal, with the last day
-                to give notice. Key terms only, not legal review.
+                to give notice. Key terms only, not legal review. Bank statements export as OFX for
+                QuickBooks and Xero.
               </p>
             </article>
             <article class="card">
@@ -226,8 +224,7 @@
             <article class="card">
               <h3>Exports your accountant takes</h3>
               <p>
-                CSV shaped for QuickBooks or Xero<span data-since="0.1.1" hidden>, and OFX bank
-                statements for both</span>, guarded against spreadsheet formula injection. Nothing
+                CSV shaped for QuickBooks or Xero, guarded against spreadsheet formula injection. Nothing
                 is sent for you, and you see where a file goes before it's written.
               </p>
             </article>
@@ -365,16 +362,9 @@
     <script>
       // Downloads come from the latest published GitHub release. Each button links straight to
       // its file; while nothing is published the buttons say so instead of opening an empty
-      // page. Text marked data-since/data-until follows the released version, so the page never
-      // advertises what the download can't do yet. Without JavaScript, or if GitHub can't be
-      // reached, the links still go to the releases page and the "coming" labels stay.
+      // page. Without JavaScript, or if GitHub can't be reached, the links still go to the
+      // releases page.
       const REPO = "https://github.com/RendoslandDev/Ledgerlens";
-      const newer = (version, than) => {
-        const a = version.replace(/^v/, "").split(".").map(Number);
-        const b = than.split(".").map(Number);
-        for (let i = 0; i < 3; i++) if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
-        return true;
-      };
       function applyRelease(release) {
         const status = document.querySelector("[data-release-status]");
         if (!release) {
@@ -402,12 +392,6 @@
           } else {
             link.hidden = true;
           }
-        });
-        document.querySelectorAll("[data-since]").forEach((el) => {
-          el.hidden = !newer(release.tag_name, el.dataset.since);
-        });
-        document.querySelectorAll("[data-until]").forEach((el) => {
-          el.hidden = newer(release.tag_name, el.dataset.until);
         });
       }
       fetch("https://api.github.com/repos/RendoslandDev/Ledgerlens/releases/latest", {

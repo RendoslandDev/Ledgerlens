@@ -898,6 +898,7 @@ function Workspace({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme)
               />
             ) : loaded ? (
               <InboxView
+                pro={info?.pro ?? false}
                 documents={documents}
                 filteredDocuments={filteredDocuments}
                 activeId={activeId}
@@ -952,6 +953,7 @@ function Workspace({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme)
           )}
           {view === "reports" && (
             <ReportsView
+              pro={info?.pro ?? false}
               report={report}
               exportCsv={(format) => void exportCsv(format)}
               workspaceName={workspaceName}

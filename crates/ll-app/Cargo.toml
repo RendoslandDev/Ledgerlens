@@ -8,6 +8,9 @@ license.workspace = true
 [features]
 # Derives `specta::Type` on the boundary types so the desktop shell can generate TypeScript.
 specta = ["dep:specta", "dep:specta-typescript", "ll-core/specta"]
+# Ledgerlens Pro: statement and contract reading and OFX export. Off by default until the paid
+# version ships; `App::with_pro` overrides it (the tests run both ways).
+pro = []
 
 [dependencies]
 specta = { workspace = true, optional = true }

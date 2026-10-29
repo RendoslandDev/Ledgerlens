@@ -31,6 +31,11 @@ impl Workspace {
     fn app(&self) -> App {
         App::open(&self.dir).unwrap().with_today(Date::new(2026, 10, 27).unwrap())
     }
+
+    /// With Ledgerlens Pro on: statements, contracts, and OFX export.
+    fn pro_app(&self) -> App {
+        self.app().with_pro(true)
+    }
 }
 
 impl Drop for Workspace {
@@ -416,7 +421,7 @@ fn vendors_bulk_approval_and_export_plan() {
 #[test]
 fn a_bank_statement_is_read_reconciled_and_exported_as_ofx() {
     let workspace = Workspace::new("statement");
-    let mut app = workspace.app();
+    let mut app = workspace.pro_app();
     let doc = app.import("statement.pdf", STATEMENT_PDF).unwrap().document;
     assert_eq!(doc.kind, "statement");
     assert_eq!(doc.status, "extracted", "a statement whose balances reconcile needs no review");
@@ -459,7 +464,7 @@ fn a_bank_statement_is_read_reconciled_and_exported_as_ofx() {
 #[test]
 fn a_contract_yields_its_parties_dates_and_notice_deadline() {
     let workspace = Workspace::new("contract");
-    let mut app = workspace.app();
+    let mut app = workspace.pro_app();
     let doc = app.import("contract.pdf", CONTRACT_PDF).unwrap().document;
     assert_eq!(doc.kind, "contract");
     assert_eq!(doc.vendor.as_deref(), Some("Kumasi Cloud Services Ltd; Northstar Studio Limited"));
@@ -492,7 +497,7 @@ fn a_contract_yields_its_parties_dates_and_notice_deadline() {
 #[test]
 fn choosing_a_type_reads_the_document_again_with_that_types_rules() {
     let workspace = Workspace::new("kind");
-    let mut app = workspace.app();
+    let mut app = workspace.pro_app();
     let doc = app.import("statement.pdf", STATEMENT_PDF).unwrap().document;
     let as_invoice = app.update_field(id(&doc.id), &edit("kind", "invoice")).unwrap();
     assert_eq!(as_invoice.summary.kind, "invoice");
@@ -507,4 +512,27 @@ fn choosing_a_type_reads_the_document_again_with_that_types_rules() {
     let back = app.update_field(id(&doc.id), &edit("kind", "statement")).unwrap();
     assert_eq!(back.transactions.len(), 5);
     assert_eq!(back.summary.status, "extracted");
+}
+
+#[test]
+fn without_pro_statements_and_contracts_are_read_as_before() {
+    let workspace = Workspace::new("free");
+    let mut app = workspace.app().with_pro(false);
+    assert!(!app.system_info().unwrap().pro);
+    let statement = app.import("statement.pdf", STATEMENT_PDF).unwrap().document;
+    assert_eq!(statement.kind, "statement", "the type is still recognised");
+    let detail = app.detail(id(&statement.id)).unwrap();
+    assert!(detail.transactions.is_empty(), "no statement rows without Pro");
+    assert!(!detail.fields.iter().any(|f| f.name == "closing_balance"));
+    assert_eq!(statement.status, "needs_review");
+    assert!(app.approve(id(&statement.id)).unwrap_err().to_string().contains("Pro"));
+
+    let contract = app.import("contract.pdf", CONTRACT_PDF).unwrap().document;
+    assert_eq!(contract.kind, "contract");
+    assert!(contract.notice_by.is_none());
+
+    let out = workspace.dir.join("free-ofx");
+    fs::create_dir_all(&out).unwrap();
+    assert!(app.export_plan(ExportFormat::Ofx, &out).unwrap_err().to_string().contains("Pro"));
+    assert_eq!(fs::read_dir(&out).unwrap().count(), 0, "nothing is written");
 }

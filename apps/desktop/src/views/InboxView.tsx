@@ -83,6 +83,7 @@ export function InboxView({
   openWatchSettings,
   openOriginal,
   vendorRef,
+  pro,
   dragging,
   setDragging,
   importFiles,
@@ -121,6 +122,8 @@ export function InboxView({
   openWatchSettings: () => void;
   openOriginal: (() => void) | null;
   vendorRef: RefObject<HTMLInputElement | null>;
+  /** Statements and contracts are read with their own rules (Ledgerlens Pro). */
+  pro: boolean;
   dragging: boolean;
   setDragging: (dragging: boolean) => void;
   importFiles: (files: FileList | File[]) => void;
@@ -383,6 +386,7 @@ export function InboxView({
           openOriginal={openOriginal}
           openDocument={select}
           vendorRef={vendorRef}
+          pro={pro}
         />
       ) : (
         <aside className="review blank-review">

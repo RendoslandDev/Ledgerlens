@@ -262,6 +262,8 @@ pub struct SystemInfo {
     pub ocr_engine: Option<String>,
     pub data_dir: Option<String>,
     pub documents: u32,
+    /// Statement and contract reading and OFX export are available (Ledgerlens Pro).
+    pub pro: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -398,6 +400,9 @@ pub struct App {
     pinned_today: Option<Date>,
     /// The latest folder scan, for the settings page; not persisted.
     watch_last: Option<watch::WatchScan>,
+    /// Statement and contract reading and OFX export (Ledgerlens Pro). On in builds with the
+    /// `pro` feature; off everywhere else until the paid version ships.
+    pro: bool,
 }
 
 const DEFAULT_WORKSPACE_NAME: &str = "My workspace";
@@ -426,12 +431,13 @@ impl App {
             store,
             blobs,
             data_dir: None,
-            pipeline: Pipeline::new(&config)?,
+            pipeline: Pipeline::new(&config)?.with_pro_kinds(cfg!(feature = "pro")),
             review_threshold: config.pipeline.escalate_below,
             default_currency: Currency::new(&config.pipeline.default_currency)?,
             config,
             pinned_today: None,
             watch_last: None,
+            pro: cfg!(feature = "pro"),
         };
         let settings = app.settings()?;
         app.apply_settings(&settings)?;
@@ -509,7 +515,7 @@ impl App {
         let mut config = self.config.clone();
         config.pipeline.default_currency = settings.default_currency.clone();
         config.pipeline.escalate_below = settings.review_threshold;
-        let mut pipeline = Pipeline::new(&config)?;
+        let mut pipeline = Pipeline::new(&config)?.with_pro_kinds(self.pro);
         if let Some(today) = self.pinned_today {
             pipeline = pipeline.with_today(today);
         }
@@ -529,7 +535,20 @@ impl App {
             ocr_engine: ll_vision::is_available().then(|| "Apple Vision (on-device)".into()),
             data_dir: self.data_dir.as_ref().map(|dir| dir.display().to_string()),
             documents: self.store.documents()?.len() as u32,
+            pro: self.pro,
         })
+    }
+
+    /// Turns Ledgerlens Pro (statements, contracts, OFX export) on or off, whatever the build.
+    pub fn with_pro(mut self, on: bool) -> Self {
+        self.pro = on;
+        self.pipeline = self.pipeline.with_pro_kinds(on);
+        self
+    }
+
+    /// The kind whose rules apply to a document of `kind` (see [`Pipeline::rules_kind`]).
+    fn rules_kind(&self, kind: DocKind) -> DocKind {
+        self.pipeline.rules_kind(kind)
     }
 
     /// Pins "today" for extraction validation and date questions (tests, replays).
@@ -739,7 +758,7 @@ impl App {
         // OCR can misread digits. Only skip review when the amounts corroborate each other: on
         // an invoice subtotal + tax = total; a statement that reached "extracted" has already
         // reconciled its balances. Contracts have no such check, so a person confirms them.
-        let confirmed = match extraction.kind {
+        let confirmed = match self.rules_kind(extraction.kind) {
             DocKind::Statement => true,
             DocKind::Contract => false,
             DocKind::Invoice | DocKind::Receipt | DocKind::Other => totals_consistent(&self.store.fields(id)?),
@@ -892,15 +911,16 @@ impl App {
         let money = |name: FieldName| fields.iter().find(|f| f.name == name).and_then(|f| f.value.as_money());
         let date = |name: FieldName| fields.iter().find(|f| f.name == name).and_then(|f| f.value.as_date());
         // The headline amount and date of each kind: a statement's closing balance and period end.
-        let (total, when) = match document.kind {
+        let rules = self.rules_kind(document.kind);
+        let (total, when) = match rules {
             DocKind::Statement => (money(FieldName::ClosingBalance), date(FieldName::PeriodEnd).or(date(FieldName::DocDate))),
             _ => (money(FieldName::Total), date(FieldName::DocDate)),
         };
-        let notice_by = match (document.kind, date(FieldName::EndDate), text(FieldName::NoticePeriod)) {
+        let notice_by = match (rules, date(FieldName::EndDate), text(FieldName::NoticePeriod)) {
             (DocKind::Contract, Some(end), Some(notice)) => notice_deadline(end, &notice).map(|d| d.to_string()),
             _ => None,
         };
-        let confidence = required_fields(document.kind)
+        let confidence = required_fields(rules)
             .iter()
             .map(|name| fields.iter().find(|f| f.name == *name).map_or(0.0, effective_confidence))
             .fold(1.0f32, f32::min);
@@ -911,7 +931,7 @@ impl App {
             size_bytes: size.max(0) as u64,
             kind: document.kind,
             status: document.status,
-            vendor: match document.kind {
+            vendor: match rules {
                 DocKind::Contract => text(FieldName::Parties),
                 _ => text(FieldName::Vendor),
             },
@@ -934,7 +954,8 @@ impl App {
         let fields = self.store.fields(id)?;
         let items = self.store.line_items(id)?;
         let transactions = self.store.transactions(id)?;
-        let review = needs_review(&fields, required_fields(summary.kind), self.review_threshold);
+        let rules = self.rules_kind(summary.kind);
+        let review = needs_review(&fields, required_fields(rules), self.review_threshold);
         let mut issues: Vec<IssueView> = Vec::new();
         if let Some(original) = &summary.duplicate_of {
             let other = self.summary(DocId::from_str(original).map_err(|e| Error::Invalid(e.to_string()))?)?;
@@ -947,7 +968,7 @@ impl App {
                 ),
             });
         }
-        issues.extend(validate_for(summary.kind, &fields, &items, &transactions, self.today())
+        issues.extend(validate_for(rules, &fields, &items, &transactions, self.today())
             .into_iter()
             .map(|issue| IssueView {
                 severity: match issue.severity {
@@ -1144,7 +1165,7 @@ impl App {
 
     /// Recomputes status from stored values after a person changed them.
     fn revalidate(&mut self, id: DocId) -> Result<()> {
-        let kind = self.store.get_document(id)?.kind;
+        let kind = self.rules_kind(self.store.get_document(id)?.kind);
         let fields = self.store.fields(id)?;
         let items = self.store.line_items(id)?;
         let transactions = self.store.transactions(id)?;
@@ -1168,6 +1189,9 @@ impl App {
         let document = self.store.get_document(id)?;
         if document.kind == DocKind::Other {
             return Err(Error::Validation("set the document type before approving".into()));
+        }
+        if self.rules_kind(document.kind) != document.kind {
+            return Err(Error::Validation("statements and contracts are part of Ledgerlens Pro, which isn't available yet".into()));
         }
         let fields = self.store.fields(id)?;
         let missing: Vec<&str> = required_fields(document.kind)
@@ -1377,7 +1401,7 @@ impl App {
             let fields = self.store.fields(document.id)?;
             if fields.iter().any(|f| f.tier != Tier::Human) {
                 machine_read += 1;
-                let all_confident = required_fields(document.kind).iter().all(|name| {
+                let all_confident = required_fields(self.rules_kind(document.kind)).iter().all(|name| {
                     fields.iter().any(|f| f.name == *name && f.tier != Tier::Human && f.confidence.get() >= self.review_threshold)
                 });
                 confident += u32::from(all_confident);
@@ -1460,6 +1484,9 @@ impl App {
             ExportFormat::Canonical => ExportTarget::Canonical,
             ExportFormat::Quickbooks => ExportTarget::QuickBooks,
             ExportFormat::Xero => ExportTarget::Xero,
+            ExportFormat::Ofx if !self.pro => {
+                return Err(Error::Validation("statement export is part of Ledgerlens Pro, which isn't available yet".into()));
+            }
             ExportFormat::Ofx => return self.ofx_files(),
         };
         let mut bytes = Vec::new();

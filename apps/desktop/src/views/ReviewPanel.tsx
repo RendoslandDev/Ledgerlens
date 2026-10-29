@@ -7,6 +7,7 @@ import type {
 } from "@ledgerlens/bindings";
 import {
   CalendarClock,
+  Sparkles,
   Check,
   ChevronDown,
   Copy,
@@ -51,6 +52,7 @@ export function ReviewPanel({
   openOriginal,
   openDocument,
   vendorRef,
+  pro,
 }: {
   detail: DocumentDetail;
   categories: string[];
@@ -63,6 +65,7 @@ export function ReviewPanel({
   openOriginal: (() => void) | null;
   openDocument: (id: string) => void;
   vendorRef: RefObject<HTMLInputElement | null>;
+  pro: boolean;
 }) {
   const { summary } = detail;
   const state = queueState(summary.status);
@@ -70,8 +73,9 @@ export function ReviewPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fieldByName = new Map(detail.fields.map((field) => [field.name, field]));
   const currency = summary.currency ?? "USD";
-  const canApprove = state !== "approved" && state !== "queued" && summary.kind !== "other";
-  const isInvoice = summary.kind === "invoice" || summary.kind === "receipt" || summary.kind === "other";
+  const proKind = summary.kind === "statement" || summary.kind === "contract";
+  const canApprove = state !== "approved" && state !== "queued" && summary.kind !== "other" && (pro || !proKind);
+  const isInvoice = !proKind || !pro;
 
   useEffect(() => {
     if (!confirmDelete) return;
@@ -161,12 +165,12 @@ export function ReviewPanel({
                 ))}
               </select>
             </label>
-            {editableFields(summary.kind).map((name) => (
+            {editableFields(summary.kind, pro).map((name) => (
               <FieldInput
                 key={name}
                 name={name}
-                label={fieldLabel(name, summary.kind)}
-                required={requiredFields(summary.kind).includes(name)}
+                label={fieldLabel(name, summary.kind, pro)}
+                required={requiredFields(summary.kind, pro).includes(name)}
                 field={fieldByName.get(name)}
                 currency={currency}
                 categories={categories}
@@ -178,7 +182,16 @@ export function ReviewPanel({
           <p className="field-hint">Changes save when you leave a field or press Enter.</p>
         </section>
 
-        {summary.kind === "statement" && (
+        {proKind && !pro && (
+          <div className="notice">
+            <Sparkles size={15} aria-hidden="true" />
+            <span>
+              Reading {summary.kind === "statement" ? "every transaction of a statement" : "a contract's key terms"} is
+              part of Ledgerlens Pro, coming soon. Until then it's read like an invoice.
+            </span>
+          </div>
+        )}
+        {pro && summary.kind === "statement" && (
           <section className="review-section">
             <div className="section-label">
               <span>Transactions</span>

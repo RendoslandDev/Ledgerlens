@@ -1,15 +1,16 @@
 # Ledgerlens
 
-Ledgerlens reads invoices, receipts, bank statements, and contracts on your own device.
+Ledgerlens reads invoices and receipts on your own device, with bank statements and contracts
+coming in Ledgerlens Pro.
 
 - **Invoices and receipts:** the vendor, dates, totals, tax, and line items.
-- **Bank statements** (from 0.1.1): every transaction, checked against the opening and closing
+- **Bank statements** (Pro, coming soon): every transaction, checked against the opening and closing
   balances.
-- **Contracts** (from 0.1.1): the parties, start and end dates, notice period, and whether it
+- **Contracts** (Pro, coming soon): the parties, start and end dates, notice period, and whether it
   renews, with the last day to give notice.
 
 Anything it isn't sure about goes to review. The rest becomes records you can search and
-question. Export invoices and receipts as CSV for QuickBooks or Xero, and (from 0.1.1)
+question. Export invoices and receipts as CSV for QuickBooks or Xero, and (with Pro)
 statements as OFX, which QuickBooks Online and Xero import as bank transactions.
 
 Nothing is uploaded and there is no account. Ledgerlens makes no network requests.
@@ -17,8 +18,7 @@ Nothing is uploaded and there is no account. Ledgerlens makes no network request
 **Status: early preview** for macOS, Windows, Linux, and Android. Expect rough edges, and please
 report them. The Mac app has had the most use. The Windows and Linux builds are tested
 automatically and the Android app on an emulator (see [What has been tested](#what-has-been-tested)),
-but they have seen little hands-on use yet. Statement and contract reading is newer still: it
-has been tried on sample documents, not yet on many real banks' layouts.
+but they have seen little hands-on use yet.
 
 ## Install on a Mac
 
@@ -71,22 +71,31 @@ Updates are installed the same way, over the existing app, and keep your library
 - **Add documents:** PDFs, PNG, JPG, and TIFF, up to 25 MB each. Digital PDFs are read from their
   text. On a Mac, scans and photos are read with Apple's on-device Vision OCR; on Windows, Linux, and
   Android there is no OCR yet, so you enter a photo's details by hand.
-- **Bank statements:** each row's direction (in or out) is worked out from the running balance.
-  If the opening balance plus the transactions doesn't equal the closing balance, the statement
-  goes to review instead of being trusted. Only the last four digits of the account number are
-  kept.
-- **Contracts:** the key terms, not a clause-by-clause review. An end date worked out from the
-  term ("twelve months"), and parties and amounts read from prose, are flagged for you to
-  confirm.
 - **Review:** work through the inbox as a table (J/K to move, A to approve) or drag cards on the
   board. Anything uncertain lands in **Needs review**.
 - **Ask:** questions about reviewed spend are answered by a SQL query that is shown to you.
-- **Export:** invoices and receipts as CSV in a canonical, QuickBooks, or Xero shape; reviewed
-  statements as OFX, one file per account, for QuickBooks Online (Banking › Upload from file)
-  or Xero (Import a statement). Re-importing the same statement is recognised as a duplicate.
-  Nothing is sent to QuickBooks or Xero for you: you import the file.
+- **Export:** CSV in a canonical, QuickBooks, or Xero shape. Nothing is sent to QuickBooks or
+  Xero for you: you import the file.
 - **Watch a folder** (optional, in Settings; Mac only for now): new files in one folder you choose
   are copied in.
+
+## Ledgerlens Pro (coming soon)
+
+A paid version, after the App Store launch, adds:
+
+- **Bank statements:** every transaction, with each row's direction (in or out) worked out from
+  the running balance. If the opening balance plus the transactions doesn't equal the closing
+  balance, the statement goes to review instead of being trusted. Only the last four digits of
+  the account number are kept.
+- **Contracts:** the key terms (parties, start and end dates, notice period, auto-renewal,
+  value) and the last day to give notice; not a clause-by-clause review. An end date worked
+  out from the term, and parties and amounts read from prose, are flagged for you to confirm.
+- **Statement export as OFX**, one file per account, for QuickBooks Online (Banking › Upload
+  from file) or Xero (Import a statement). Re-importing a statement is recognised as a
+  duplicate.
+
+These are built and tested on sample documents but switched off in the free download. To try
+them from source, run `npx tauri dev --features pro` in `apps/desktop`.
 
 ## Your data
 

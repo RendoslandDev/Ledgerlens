@@ -242,6 +242,8 @@ export type SystemInfo = {
 	ocrEngine: string | null,
 	dataDir: string | null,
 	documents: number,
+	/**  Statement and contract reading and OFX export are available (Ledgerlens Pro). */
+	pro: boolean,
 };
 
 export type TextSource = 
