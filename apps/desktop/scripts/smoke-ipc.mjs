@@ -2,11 +2,12 @@
 //
 // Launches the app with WebView2's remote debugging port open (CI also sets it through WebView2's
 // loader-override registry key, since the app's own browser arguments win over the environment),
-// then drives the real IPC from inside the page: checks system_info, imports a text PDF as raw bytes (the same call the Add button
-// makes), and waits for the background reader to extract it.
+// then drives the real IPC from inside the page: checks system_info, imports a text PDF as raw
+// bytes (the same call the Add button makes), and waits for the background reader to extract it.
+// On failure it prints the app's and WebView2's processes, listening ports, and data folder.
 //
 // Usage: node scripts/smoke-ipc.mjs <app.exe> <fixture.pdf>
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 
@@ -117,6 +118,23 @@ async function main() {
   throw new Error("the import was not read within 60 s");
 }
 
+// What was running when the test failed: whether WebView2 started, with which arguments.
+function diagnose() {
+  const script = [
+    "Get-CimInstance Win32_Process | Where-Object Name -match 'ledgerlens|msedgewebview2' |",
+    "  ForEach-Object { '{0} {1}: {2}' -f $_.ProcessId, $_.Name, $_.CommandLine }",
+    "Get-NetTCPConnection -State Listen | Where-Object LocalPort -ge 9000 |",
+    "  ForEach-Object { 'listening {0}:{1} pid {2}' -f $_.LocalAddress, $_.LocalPort, $_.OwningProcess }",
+    "Get-ChildItem (Join-Path $env:LOCALAPPDATA 'com.ledgerlens.app') -Depth 1 -ErrorAction SilentlyContinue |",
+    "  ForEach-Object { $_.FullName }",
+  ].join("\n");
+  try {
+    console.log(execFileSync("powershell", ["-NoProfile", "-Command", script], { encoding: "utf8" }));
+  } catch (error) {
+    console.log(`diagnostics failed: ${error.message}`);
+  }
+}
+
 main()
   .then(() => {
     console.log("smoke test passed");
@@ -125,6 +143,7 @@ main()
   })
   .catch((error) => {
     console.error(`smoke test failed: ${error.message}`);
+    if (process.platform === "win32") diagnose();
     app.kill();
     process.exit(1);
   });
