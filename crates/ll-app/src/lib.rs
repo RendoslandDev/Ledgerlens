@@ -15,8 +15,10 @@ use ll_core::{
     Config, Confidence, Currency, Date, DocId, DocKind, DocStatus, Error, ErrorCode, ExtractedField,
     FieldName, FieldValue, Money, Result, Tier,
 };
-use ll_export::ExportTarget;
-use ll_extract::{needs_review, totals_consistent, validate, Pipeline, Severity, REQUIRED_FIELDS};
+use ll_export::{ExportTarget, OfxStatement};
+use ll_extract::{
+    needs_review, notice_deadline, required_fields, totals_consistent, validate_for, Pipeline, Severity,
+};
 use ll_jobs::{JobState, Queue};
 use ll_query::{Breakdown, SpendQuery};
 use ll_store::{run_migrations, Migration, Store};
@@ -110,6 +112,11 @@ Migration {
             seen_at INTEGER NOT NULL
         );
     ",
+},
+Migration {
+    version: 5,
+    name: "document type chosen by a person",
+    sql: "ALTER TABLE app_files ADD COLUMN kind_override TEXT;",
 }];
 
 // ---- boundary types --------------------------------------------------------------------------
@@ -143,6 +150,8 @@ pub struct DocumentSummary {
     pub text_source: Option<TextSource>,
     /// Why the document could not be read automatically, or what to check after OCR.
     pub note: Option<String>,
+    /// For a contract with an end date and a notice period: the last day to give notice.
+    pub notice_by: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -171,6 +180,20 @@ pub struct LineItemView {
     pub currency: String,
 }
 
+/// One statement row. `amount_minor` is signed: money in is positive, money out negative.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionView {
+    pub date: String,
+    pub description: String,
+    #[cfg_attr(feature = "specta", specta(type = specta_typescript::Number))]
+    pub amount_minor: i64,
+    #[cfg_attr(feature = "specta", specta(type = Option<specta_typescript::Number>))]
+    pub balance_minor: Option<i64>,
+    pub currency: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "lowercase")]
@@ -194,6 +217,8 @@ pub struct DocumentDetail {
     pub summary: DocumentSummary,
     pub fields: Vec<FieldView>,
     pub line_items: Vec<LineItemView>,
+    /// Statement rows, in the order printed.
+    pub transactions: Vec<TransactionView>,
     pub issues: Vec<IssueView>,
     pub text: Option<String>,
     /// Changes people made to fields, oldest first.
@@ -335,13 +360,16 @@ pub enum ExportFormat {
     Canonical,
     Quickbooks,
     Xero,
+    /// Reviewed bank statements as OFX, one file per account, for QuickBooks Online and Xero.
+    Ofx,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "camelCase")]
 pub struct ExportResult {
-    pub path: String,
+    /// Every file written: one for a CSV, one per account for OFX.
+    pub paths: Vec<String>,
     #[cfg_attr(feature = "specta", specta(type = specta_typescript::Number))]
     pub rows: usize,
 }
@@ -351,7 +379,8 @@ pub struct ExportResult {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "camelCase")]
 pub struct ExportPlan {
-    pub path: String,
+    pub paths: Vec<String>,
+    /// Records for a CSV; transactions for OFX.
     #[cfg_attr(feature = "specta", specta(type = specta_typescript::Number))]
     pub rows: usize,
 }
@@ -673,15 +702,7 @@ impl App {
                     "Read with on-device OCR. Check amounts and dates against the original.",
                 );
                 self.set_text(id, Some(&text), note, Some(source))?;
-                let extraction = self.pipeline.run(&text);
-                let status = self.pipeline.persist(&mut self.store, id, &extraction)?;
-                // OCR can misread digits. Only skip review when the amounts corroborate each
-                // other (subtotal + tax = total); otherwise a person confirms them.
-                let unconfirmed_ocr =
-                    source == TextSource::Ocr && !totals_consistent(&self.store.fields(id)?);
-                if status == DocStatus::Extracted && (unconfirmed_ocr || self.duplicate_of(id)?.is_some()) {
-                    self.store.set_status(id, DocStatus::NeedsReview)?;
-                }
+                self.extract_text(id, &text, source)?;
             }
             TextOutcome::NoText => {
                 let note = if ll_vision::is_available() {
@@ -698,6 +719,34 @@ impl App {
                 self.set_text(id, None, Some(&capitalize_first(&reason)), None)?;
                 self.store.set_status(id, DocStatus::Failed)?;
             }
+        }
+        Ok(())
+    }
+
+    /// Runs extraction over a document's text and stores the result. A type a person chose wins
+    /// over the classifier.
+    fn extract_text(&mut self, id: DocId, text: &str, source: TextSource) -> Result<()> {
+        let chosen: Option<String> = self
+            .store
+            .conn()
+            .query_row("SELECT kind_override FROM app_files WHERE document_id=?1", [id.to_string()], |row| row.get(0))
+            .map_err(Error::storage)?;
+        let extraction = match chosen.as_deref().and_then(|kind| DocKind::from_str(kind).ok()) {
+            Some(kind) => self.pipeline.run_as(text, kind),
+            None => self.pipeline.run(text),
+        };
+        let status = self.pipeline.persist(&mut self.store, id, &extraction)?;
+        // OCR can misread digits. Only skip review when the amounts corroborate each other: on
+        // an invoice subtotal + tax = total; a statement that reached "extracted" has already
+        // reconciled its balances. Contracts have no such check, so a person confirms them.
+        let confirmed = match extraction.kind {
+            DocKind::Statement => true,
+            DocKind::Contract => false,
+            DocKind::Invoice | DocKind::Receipt | DocKind::Other => totals_consistent(&self.store.fields(id)?),
+        };
+        let unconfirmed_ocr = source == TextSource::Ocr && !confirmed;
+        if status == DocStatus::Extracted && (unconfirmed_ocr || self.duplicate_of(id)?.is_some()) {
+            self.store.set_status(id, DocStatus::NeedsReview)?;
         }
         Ok(())
     }
@@ -840,8 +889,18 @@ impl App {
         let text = |name: FieldName| {
             fields.iter().find(|f| f.name == name).and_then(|f| f.value.as_text()).map(str::to_string)
         };
-        let total = fields.iter().find(|f| f.name == FieldName::Total).and_then(|f| f.value.as_money());
-        let confidence = REQUIRED_FIELDS
+        let money = |name: FieldName| fields.iter().find(|f| f.name == name).and_then(|f| f.value.as_money());
+        let date = |name: FieldName| fields.iter().find(|f| f.name == name).and_then(|f| f.value.as_date());
+        // The headline amount and date of each kind: a statement's closing balance and period end.
+        let (total, when) = match document.kind {
+            DocKind::Statement => (money(FieldName::ClosingBalance), date(FieldName::PeriodEnd).or(date(FieldName::DocDate))),
+            _ => (money(FieldName::Total), date(FieldName::DocDate)),
+        };
+        let notice_by = match (document.kind, date(FieldName::EndDate), text(FieldName::NoticePeriod)) {
+            (DocKind::Contract, Some(end), Some(notice)) => notice_deadline(end, &notice).map(|d| d.to_string()),
+            _ => None,
+        };
+        let confidence = required_fields(document.kind)
             .iter()
             .map(|name| fields.iter().find(|f| f.name == *name).map_or(0.0, effective_confidence))
             .fold(1.0f32, f32::min);
@@ -852,13 +911,12 @@ impl App {
             size_bytes: size.max(0) as u64,
             kind: document.kind,
             status: document.status,
-            vendor: text(FieldName::Vendor),
+            vendor: match document.kind {
+                DocKind::Contract => text(FieldName::Parties),
+                _ => text(FieldName::Vendor),
+            },
             invoice_number: text(FieldName::InvoiceNumber),
-            date: fields
-                .iter()
-                .find(|f| f.name == FieldName::DocDate)
-                .and_then(|f| f.value.as_date())
-                .map(|date| date.to_string()),
+            date: when.map(|date| date.to_string()),
             currency: text(FieldName::Currency).or_else(|| total.map(|m| m.currency.code().to_string())),
             total_minor: total.map(|m| m.minor),
             category: text(FieldName::Category),
@@ -867,6 +925,7 @@ impl App {
             duplicate_of: self.duplicate_of(id)?,
             text_source: text_source.as_deref().and_then(TextSource::from_stored),
             note,
+            notice_by,
         })
     }
 
@@ -874,7 +933,8 @@ impl App {
         let summary = self.summary(id)?;
         let fields = self.store.fields(id)?;
         let items = self.store.line_items(id)?;
-        let review = needs_review(&fields, &REQUIRED_FIELDS, self.review_threshold);
+        let transactions = self.store.transactions(id)?;
+        let review = needs_review(&fields, required_fields(summary.kind), self.review_threshold);
         let mut issues: Vec<IssueView> = Vec::new();
         if let Some(original) = &summary.duplicate_of {
             let other = self.summary(DocId::from_str(original).map_err(|e| Error::Invalid(e.to_string()))?)?;
@@ -887,7 +947,7 @@ impl App {
                 ),
             });
         }
-        issues.extend(validate(&fields, &items, self.today())
+        issues.extend(validate_for(summary.kind, &fields, &items, &transactions, self.today())
             .into_iter()
             .map(|issue| IssueView {
                 severity: match issue.severity {
@@ -923,6 +983,16 @@ impl App {
                     currency: item.amount.currency.code().into(),
                 })
                 .collect(),
+            transactions: transactions
+                .into_iter()
+                .map(|row| TransactionView {
+                    date: row.date.to_string(),
+                    description: row.description,
+                    amount_minor: row.amount.minor,
+                    balance_minor: row.balance.map(|balance| balance.minor),
+                    currency: row.amount.currency.code().into(),
+                })
+                .collect(),
             issues,
             text,
             history: self
@@ -953,7 +1023,26 @@ impl App {
         if edit.field == "kind" {
             let kind = DocKind::from_str(edit.value.trim())
                 .map_err(|_| Error::Invalid("type must be invoice, receipt, statement, contract, or other".into()))?;
+            self.store.conn()
+                .execute("UPDATE app_files SET kind_override=?2 WHERE document_id=?1", params![id.to_string(), kind.as_str()])
+                .map_err(Error::storage)?;
             self.store.set_kind(id, kind)?;
+            // Read the stored text again with the new type's rules (statement rows, contract
+            // terms). Values a person entered are kept.
+            let stored: Option<(Option<String>, Option<String>)> = self
+                .store
+                .conn()
+                .query_row("SELECT text, text_source FROM app_files WHERE document_id=?1", [id.to_string()], |row| {
+                    Ok((row.get(0)?, row.get(1)?))
+                })
+                .optional()
+                .map_err(Error::storage)?;
+            if let Some((Some(text), source)) = stored {
+                let source = source.as_deref().and_then(TextSource::from_stored).unwrap_or(TextSource::TextLayer);
+                self.store.set_status(id, DocStatus::NeedsReview)?;
+                self.extract_text(id, &text, source)?;
+                return self.detail(id);
+            }
         } else {
             let name = FieldName::from_str(&edit.field)
                 .map_err(|_| Error::Invalid(format!("unknown field: {}", edit.field)))?;
@@ -986,10 +1075,10 @@ impl App {
 
     fn parse_value(&self, id: DocId, name: FieldName, value: &str) -> Result<FieldValue> {
         match name {
-            FieldName::DocDate | FieldName::DueDate => Date::parse(value)
+            FieldName::DocDate | FieldName::DueDate | FieldName::PeriodStart | FieldName::PeriodEnd | FieldName::EndDate => Date::parse(value)
                 .map(FieldValue::Date)
                 .map_err(|_| Error::Invalid("dates must look like 2026-09-14".into())),
-            FieldName::Subtotal | FieldName::Tax | FieldName::Total => {
+            FieldName::Subtotal | FieldName::Tax | FieldName::Total | FieldName::OpeningBalance | FieldName::ClosingBalance => {
                 if !value.chars().all(|c| c.is_ascii_digit() || matches!(c, '.' | ',' | '-' | ' ')) {
                     return Err(Error::Invalid("amounts may only contain digits, separators, and a minus sign".into()));
                 }
@@ -1007,7 +1096,31 @@ impl App {
                 .find(|category| category.eq_ignore_ascii_case(value))
                 .map(|category| FieldValue::Text((*category).into()))
                 .ok_or_else(|| Error::Invalid(format!("category must be one of: {}", CATEGORIES.join(", ")))),
-            FieldName::Vendor | FieldName::InvoiceNumber | FieldName::PaymentMethod => {
+            FieldName::AccountNumber => {
+                // Only the last four digits are kept, as when the statement is read.
+                let digits: String = value.chars().filter(char::is_ascii_digit).collect();
+                if digits.len() < 4 || value.chars().any(|c| !(c.is_ascii_digit() || " -•*xX".contains(c))) {
+                    return Err(Error::Invalid("an account number needs at least four digits".into()));
+                }
+                Ok(FieldValue::Text(format!("••••{}", &digits[digits.len() - 4..])))
+            }
+            FieldName::NoticePeriod => {
+                let mut parts = value.split_whitespace();
+                let count = parts.next().and_then(|n| n.parse::<u32>().ok()).filter(|n| (1..=999).contains(n));
+                let unit = parts.next().map(|u| u.to_ascii_lowercase());
+                match (count, unit.as_deref().map(|u| u.trim_end_matches('s')), parts.next()) {
+                    (Some(count), Some(unit @ ("day" | "week" | "month")), None) => {
+                        let plural = if count == 1 { "" } else { "s" };
+                        Ok(FieldValue::Text(format!("{count} {unit}{plural}")))
+                    }
+                    _ => Err(Error::Invalid("notice must look like 30 days, 2 weeks, or 1 month".into())),
+                }
+            }
+            FieldName::AutoRenew => match value.to_ascii_lowercase().as_str() {
+                "yes" | "no" => Ok(FieldValue::Text(value.to_ascii_lowercase())),
+                _ => Err(Error::Invalid("auto-renew must be yes or no".into())),
+            },
+            FieldName::Vendor | FieldName::InvoiceNumber | FieldName::PaymentMethod | FieldName::Parties => {
                 if value.chars().count() > MAX_TEXT_FIELD_CHARS || value.chars().any(char::is_control) {
                     return Err(Error::Invalid(format!(
                         "text must be at most {MAX_TEXT_FIELD_CHARS} characters with no control characters"
@@ -1031,10 +1144,12 @@ impl App {
 
     /// Recomputes status from stored values after a person changed them.
     fn revalidate(&mut self, id: DocId) -> Result<()> {
+        let kind = self.store.get_document(id)?.kind;
         let fields = self.store.fields(id)?;
         let items = self.store.line_items(id)?;
-        let issues = validate(&fields, &items, self.today());
-        let review = needs_review(&fields, &REQUIRED_FIELDS, self.review_threshold);
+        let transactions = self.store.transactions(id)?;
+        let issues = validate_for(kind, &fields, &items, &transactions, self.today());
+        let review = needs_review(&fields, required_fields(kind), self.review_threshold);
         let status = if review.is_empty()
             && !issues.iter().any(|issue| issue.severity == Severity::Error)
             && self.duplicate_of(id)?.is_none()
@@ -1046,14 +1161,16 @@ impl App {
         self.store.set_status(id, status)
     }
 
-    /// Marks a document approved. Its record must be complete: vendor, date, and total.
+    /// Marks a document approved. It must have its kind's required fields: vendor, date, and
+    /// total for an invoice or receipt; bank, period end, and both balances for a statement;
+    /// parties and start date for a contract.
     pub fn approve(&mut self, id: DocId) -> Result<DocumentSummary> {
         let document = self.store.get_document(id)?;
-        if !matches!(document.kind, DocKind::Invoice | DocKind::Receipt) {
-            return Err(Error::Validation("only invoices and receipts can be approved; set the document type first".into()));
+        if document.kind == DocKind::Other {
+            return Err(Error::Validation("set the document type before approving".into()));
         }
         let fields = self.store.fields(id)?;
-        let missing: Vec<&str> = REQUIRED_FIELDS
+        let missing: Vec<&str> = required_fields(document.kind)
             .iter()
             .filter(|name| !fields.iter().any(|f| f.name == **name))
             .map(|name| label(*name))
@@ -1114,7 +1231,9 @@ impl App {
 
     pub fn vendors(&self) -> Result<Vec<VendorSummary>> {
         let mut vendors: Vec<VendorSummary> = Vec::new();
-        for doc in self.list()? {
+        // Statements and contracts are not purchases: a closing balance or a contract's value
+        // would be counted as spend.
+        for doc in self.list()?.into_iter().filter(|doc| !matches!(doc.kind, DocKind::Statement | DocKind::Contract)) {
             let Some(name) = doc.vendor.clone() else { continue };
             let index = match vendors.iter().position(|v| v.name.eq_ignore_ascii_case(&name)) {
                 Some(index) => index,
@@ -1258,7 +1377,7 @@ impl App {
             let fields = self.store.fields(document.id)?;
             if fields.iter().any(|f| f.tier != Tier::Human) {
                 machine_read += 1;
-                let all_confident = REQUIRED_FIELDS.iter().all(|name| {
+                let all_confident = required_fields(document.kind).iter().all(|name| {
                     fields.iter().any(|f| f.name == *name && f.tier != Tier::Human && f.confidence.get() >= self.review_threshold)
                 });
                 confident += u32::from(all_confident);
@@ -1293,51 +1412,130 @@ impl App {
         })
     }
 
-    /// Writes reviewed records (extracted or approved) as CSV into `directory`, never overwriting
-    /// an existing file.
-    /// The file an export would create and how many rows it would hold. Nothing is written.
+    /// The files an export would create and how many rows they would hold. Nothing is written.
     pub fn export_plan(&self, format: ExportFormat, directory: &Path) -> Result<ExportPlan> {
-        let rows = self.reviewed_invoices()?.len();
-        let stem = format!("ledgerlens-{}-{}", export_slug(format), self.today());
-        for attempt in 0..100 {
-            let path = directory.join(export_name(&stem, attempt));
-            if !path.exists() {
-                return Ok(ExportPlan { path: path.display().to_string(), rows });
-            }
+        let files = self.export_contents(format)?;
+        let mut paths: Vec<PathBuf> = Vec::new();
+        for file in &files {
+            paths.push(self.free_export_path(format, file, directory, &paths)?);
         }
-        Err(Error::Io("too many exports with the same name today".into()))
+        Ok(ExportPlan {
+            paths: paths.iter().map(|path| path.display().to_string()).collect(),
+            rows: files.iter().map(|file| file.rows).sum(),
+        })
     }
 
-    fn reviewed_invoices(&self) -> Result<Vec<ll_store::InvoiceRow>> {
+    /// Writes reviewed records (extracted or approved) into `directory`: invoices and receipts as
+    /// CSV, statements as OFX. Existing files are never overwritten.
+    pub fn export(&self, format: ExportFormat, directory: &Path) -> Result<ExportResult> {
+        let files = self.export_contents(format)?;
+        let mut written: Vec<PathBuf> = Vec::new();
+        for file in &files {
+            let path = self.write_export(format, file, directory, &written)?;
+            written.push(path);
+        }
+        Ok(ExportResult {
+            paths: written.iter().map(|path| path.display().to_string()).collect(),
+            rows: files.iter().map(|file| file.rows).sum(),
+        })
+    }
+
+    fn reviewed(&self, kind: impl Fn(DocKind) -> bool) -> Result<Vec<ll_store::Document>> {
         Ok(self
             .store
-            .invoices()?
+            .documents()?
             .into_iter()
-            .filter(|row| {
-                self.store
-                    .get_document(row.document_id)
-                    .is_ok_and(|doc| matches!(doc.status, DocStatus::Extracted | DocStatus::Approved))
-            })
+            .filter(|doc| kind(doc.kind) && matches!(doc.status, DocStatus::Extracted | DocStatus::Approved))
             .collect())
     }
 
-    pub fn export(&self, format: ExportFormat, directory: &Path) -> Result<ExportResult> {
-        let reviewed = self.reviewed_invoices()?;
+    fn reviewed_invoices(&self) -> Result<Vec<ll_store::InvoiceRow>> {
+        let reviewed: Vec<DocId> = self.reviewed(|kind| matches!(kind, DocKind::Invoice | DocKind::Receipt))?
+            .into_iter().map(|doc| doc.id).collect();
+        Ok(self.store.invoices()?.into_iter().filter(|row| reviewed.contains(&row.document_id)).collect())
+    }
+
+    fn export_contents(&self, format: ExportFormat) -> Result<Vec<ExportFile>> {
         let target = match format {
             ExportFormat::Canonical => ExportTarget::Canonical,
             ExportFormat::Quickbooks => ExportTarget::QuickBooks,
             ExportFormat::Xero => ExportTarget::Xero,
+            ExportFormat::Ofx => return self.ofx_files(),
         };
-        let mut buffer = Vec::new();
-        let rows = ll_export::export_invoices(&reviewed, target, &mut buffer)?;
-        let stem = format!("ledgerlens-{}-{}", export_slug(format), self.today());
+        let mut bytes = Vec::new();
+        let rows = ll_export::export_invoices(&self.reviewed_invoices()?, target, &mut bytes)?;
+        Ok(vec![ExportFile { suffix: String::new(), extension: "csv", bytes, rows }])
+    }
+
+    /// One OFX file per account and currency, holding every reviewed statement for it.
+    fn ofx_files(&self) -> Result<Vec<ExportFile>> {
+        struct Source { key: String, start: Option<Date>, end: Option<Date>, closing: Option<Money>, rows: Vec<ll_core::Transaction> }
+        let mut groups: Vec<((String, Currency), Vec<Source>)> = Vec::new();
+        for document in self.reviewed(|kind| kind == DocKind::Statement)? {
+            let fields = self.store.fields(document.id)?;
+            let field = |name: FieldName| fields.iter().find(|f| f.name == name).map(|f| f.value.clone());
+            let rows = self.store.transactions(document.id)?;
+            let closing = field(FieldName::ClosingBalance).and_then(|v| v.as_money());
+            let currency = closing.map(|m| m.currency)
+                .or_else(|| rows.first().map(|t| t.amount.currency))
+                .unwrap_or(self.document_currency(document.id)?);
+            let account: String = field(FieldName::AccountNumber)
+                .and_then(|v| v.as_text().map(|t| t.chars().filter(char::is_ascii_digit).collect()))
+                .unwrap_or_default();
+            let source = Source {
+                key: document.sha256[..16].to_string(),
+                start: field(FieldName::PeriodStart).and_then(|v| v.as_date()),
+                end: field(FieldName::PeriodEnd).and_then(|v| v.as_date()),
+                closing,
+                rows,
+            };
+            match groups.iter_mut().find(|(key, _)| *key == (account.clone(), currency)) {
+                Some((_, sources)) => sources.push(source),
+                None => groups.push(((account, currency), vec![source])),
+            }
+        }
+        let accounts = groups.len();
+        groups
+            .into_iter()
+            .map(|((account, currency), sources)| {
+                let statements: Vec<OfxStatement<'_>> = sources
+                    .iter()
+                    .map(|s| OfxStatement {
+                        document_key: &s.key, period_start: s.start, period_end: s.end,
+                        closing_balance: s.closing, transactions: &s.rows,
+                    })
+                    .collect();
+                let mut bytes = Vec::new();
+                let id = if account.is_empty() { "unknown" } else { account.as_str() };
+                let rows = ll_export::export_ofx(id, currency, &statements, self.today(), &mut bytes)?;
+                let suffix = match (account.is_empty(), accounts > 1) {
+                    (false, _) => format!("-{account}-{}", currency.code().to_ascii_lowercase()),
+                    (true, true) => format!("-{}", currency.code().to_ascii_lowercase()),
+                    (true, false) => String::new(),
+                };
+                Ok(ExportFile { suffix, extension: "ofx", bytes, rows })
+            })
+            .collect()
+    }
+
+    fn free_export_path(&self, format: ExportFormat, file: &ExportFile, directory: &Path, taken: &[PathBuf]) -> Result<PathBuf> {
+        let stem = format!("ledgerlens-{}-{}{}", export_slug(format), self.today(), file.suffix);
+        (0..100)
+            .map(|attempt| directory.join(export_name(&stem, attempt, file.extension)))
+            .find(|path| !path.exists() && !taken.contains(path))
+            .ok_or_else(|| Error::Io("too many exports with the same name today".into()))
+    }
+
+    fn write_export(&self, format: ExportFormat, file: &ExportFile, directory: &Path, taken: &[PathBuf]) -> Result<PathBuf> {
+        let stem = format!("ledgerlens-{}-{}{}", export_slug(format), self.today(), file.suffix);
         for attempt in 0..100 {
-            let path = directory.join(export_name(&stem, attempt));
+            let path = directory.join(export_name(&stem, attempt, file.extension));
+            if taken.contains(&path) { continue; }
             match OpenOptions::new().write(true).create_new(true).open(&path) {
-                Ok(mut file) => {
-                    file.write_all(&buffer)?;
-                    file.sync_all()?;
-                    return Ok(ExportResult { path: path.display().to_string(), rows });
+                Ok(mut handle) => {
+                    handle.write_all(&file.bytes)?;
+                    handle.sync_all()?;
+                    return Ok(path);
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
                 Err(error) => return Err(error.into()),
@@ -1465,16 +1663,26 @@ impl ReadJob {
     }
 }
 
+/// One file of an export, ready to write.
+struct ExportFile {
+    /// Added to the file name, e.g. the account's last digits.
+    suffix: String,
+    extension: &'static str,
+    bytes: Vec<u8>,
+    rows: usize,
+}
+
 fn export_slug(format: ExportFormat) -> &'static str {
     match format {
         ExportFormat::Canonical => "records",
         ExportFormat::Quickbooks => "quickbooks",
         ExportFormat::Xero => "xero",
+        ExportFormat::Ofx => "statements",
     }
 }
 
-fn export_name(stem: &str, attempt: u32) -> String {
-    if attempt == 0 { format!("{stem}.csv") } else { format!("{stem}-{attempt}.csv") }
+fn export_name(stem: &str, attempt: u32, extension: &str) -> String {
+    if attempt == 0 { format!("{stem}.{extension}") } else { format!("{stem}-{attempt}.{extension}") }
 }
 
 fn default_kind(media: MediaType) -> DocKind {
@@ -1535,6 +1743,15 @@ fn label(name: FieldName) -> &'static str {
         FieldName::Total => "total",
         FieldName::PaymentMethod => "payment method",
         FieldName::Category => "category",
+        FieldName::AccountNumber => "account number",
+        FieldName::PeriodStart => "period start",
+        FieldName::PeriodEnd => "period end",
+        FieldName::OpeningBalance => "opening balance",
+        FieldName::ClosingBalance => "closing balance",
+        FieldName::Parties => "parties",
+        FieldName::EndDate => "end date",
+        FieldName::NoticePeriod => "notice period",
+        FieldName::AutoRenew => "auto-renew",
     }
 }
 

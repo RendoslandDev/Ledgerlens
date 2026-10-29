@@ -6,6 +6,7 @@ import type {
   FieldView,
 } from "@ledgerlens/bindings";
 import {
+  CalendarClock,
   Check,
   ChevronDown,
   Copy,
@@ -26,14 +27,17 @@ import {
   currencies,
   displayName,
   editableFields,
+  fieldLabel,
   fieldLabels,
   queueState,
+  requiredFields,
   stateLabels,
 } from "../data";
 import { fileSize, money, timeAgo } from "../format";
 
 const kinds: DocKind[] = ["invoice", "receipt", "statement", "contract", "other"];
-const moneyFields: FieldName[] = ["subtotal", "tax", "total"];
+const moneyFields: FieldName[] = ["subtotal", "tax", "total", "opening_balance", "closing_balance"];
+const dateFields: FieldName[] = ["doc_date", "due_date", "period_start", "period_end", "end_date"];
 
 export function ReviewPanel({
   detail,
@@ -66,10 +70,8 @@ export function ReviewPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fieldByName = new Map(detail.fields.map((field) => [field.name, field]));
   const currency = summary.currency ?? "USD";
-  const canApprove =
-    state !== "approved" &&
-    state !== "queued" &&
-    (summary.kind === "invoice" || summary.kind === "receipt");
+  const canApprove = state !== "approved" && state !== "queued" && summary.kind !== "other";
+  const isInvoice = summary.kind === "invoice" || summary.kind === "receipt" || summary.kind === "other";
 
   useEffect(() => {
     if (!confirmDelete) return;
@@ -113,6 +115,15 @@ export function ReviewPanel({
             <span>{summary.note}</span>
           </div>
         )}
+        {summary.noticeBy && (
+          <div className="notice">
+            <CalendarClock size={15} aria-hidden="true" />
+            <span>
+              To stop it {fieldByName.get("auto_renew")?.value === "yes" ? "renewing" : "running on"}, give
+              notice by <strong className="mono">{summary.noticeBy}</strong>.
+            </span>
+          </div>
+        )}
         {detail.issues.length > 0 && (
           <div className="notice warn">
             <CircleAlert size={15} aria-hidden="true" />
@@ -150,22 +161,49 @@ export function ReviewPanel({
                 ))}
               </select>
             </label>
-            {editableFields.map((name) => (
+            {editableFields(summary.kind).map((name) => (
               <FieldInput
                 key={name}
                 name={name}
+                label={fieldLabel(name, summary.kind)}
+                required={requiredFields(summary.kind).includes(name)}
                 field={fieldByName.get(name)}
                 currency={currency}
                 categories={categories}
                 update={update}
-                inputRef={name === "vendor" ? vendorRef : undefined}
+                inputRef={name === "vendor" || name === "parties" ? vendorRef : undefined}
               />
             ))}
           </div>
           <p className="field-hint">Changes save when you leave a field or press Enter.</p>
         </section>
 
-        <section className="review-section">
+        {summary.kind === "statement" && (
+          <section className="review-section">
+            <div className="section-label">
+              <span>Transactions</span>
+              <span className="section-meta mono">{detail.transactions.length}</span>
+            </div>
+            {detail.transactions.length ? (
+              <div className="line-items">
+                {detail.transactions.map((row, index) => (
+                  <div className="line-item transaction" key={`${index}-${row.date}`}>
+                    <span className="mono dim">{row.date}</span>
+                    <span>{row.description}</span>
+                    <span className={`mono num ${row.amountMinor < 0 ? "" : "credit"}`}>
+                      {row.amountMinor > 0 ? "+" : ""}
+                      {money(row.amountMinor, row.currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="muted-copy">No transactions were found.</p>
+            )}
+          </section>
+        )}
+
+        {isInvoice && <section className="review-section">
           <div className="section-label">
             <span>Line items</span>
             <span className="section-meta mono">{detail.lineItems.length}</span>
@@ -183,7 +221,7 @@ export function ReviewPanel({
           ) : (
             <p className="muted-copy">No line items were found.</p>
           )}
-        </section>
+        </section>}
 
         {summary.duplicateOf && (
           <div className="review-section duplicate-link">
@@ -272,6 +310,8 @@ export function ReviewPanel({
 
 function FieldInput({
   name,
+  label: labelText,
+  required,
   field,
   currency,
   categories,
@@ -279,6 +319,8 @@ function FieldInput({
   inputRef,
 }: {
   name: FieldName;
+  label: string;
+  required: boolean;
   field?: FieldView;
   currency: string;
   categories: string[];
@@ -295,18 +337,18 @@ function FieldInput({
     if (!ok) setDraft(saved);
   }
 
-  const flagged = field?.needsReview || (!field && ["vendor", "doc_date", "total"].includes(name));
+  const flagged = field?.needsReview || (!field && required);
   const label = (
     <span className="field-name">
-      {fieldLabels[name]}
+      {labelText}
       {field && field.tier !== "human" && (
         <em className={field.needsReview ? "low" : ""}>{field.confidence}</em>
       )}
     </span>
   );
 
-  if (name === "category" || name === "currency") {
-    const options = name === "category" ? categories : currencies;
+  if (name === "category" || name === "currency" || name === "auto_renew") {
+    const options = name === "category" ? categories : name === "currency" ? currencies : ["yes", "no"];
     return (
       <label className={`field ${flagged ? "flagged" : ""}`}>
         {label}
@@ -321,7 +363,7 @@ function FieldInput({
   }
 
   const isMoney = moneyFields.includes(name);
-  const isDate = name === "doc_date" || name === "due_date";
+  const isDate = dateFields.includes(name);
   const input = (
     <input
       ref={inputRef}
@@ -330,7 +372,7 @@ function FieldInput({
       inputMode={isMoney ? "decimal" : undefined}
       value={draft}
       maxLength={200}
-      placeholder={isMoney ? "0.00" : ""}
+      placeholder={isMoney ? "0.00" : name === "notice_period" ? "30 days" : name === "parties" ? "First party; second party" : ""}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={(event) => void commit(event.target.value)}
       onKeyDown={(event) => {
@@ -340,7 +382,7 @@ function FieldInput({
           event.currentTarget.blur();
         }
       }}
-      aria-label={fieldLabels[name]}
+      aria-label={labelText}
     />
   );
   return (

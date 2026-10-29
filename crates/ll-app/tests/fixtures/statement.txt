@@ -1,0 +1,18 @@
+Kumasi Community Bank
+14 Harper Road, Kumasi, Ghana
+
+STATEMENT OF ACCOUNT
+Account holder: Northstar Studio
+Account No: 0012 3456 7890
+Statement period: 01/09/2026 to 30/09/2026
+Currency: GHS
+
+Date      Description                       Debit         Credit        Balance
+          Opening balance                                               4,000.00
+02/09     Client payment Adom Bakery                      2,500.00      6,500.00
+05/09     Office rent September             1,200.00                    5,300.00
+14/09     Kumasi Cloud Services Ltd         1,725.00                    3,575.00
+          invoice KCS-2026-0193
+28/09     MTN Mobile Money top-up              45.50                    3,529.50
+30/09     Interest                                            1.25      3,530.75
+          Closing balance                                               3,530.75

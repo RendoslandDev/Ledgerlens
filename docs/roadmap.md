@@ -77,6 +77,22 @@ fails CI when they drift. Download: crates `tauri-specta`/`specta` (source crate
 - Cross-platform OCR for Windows and Linux. Both now build and ship (text PDFs only); OCR there is
   the next platform gap, along with folder watching (the folder dialog is macOS-only).
 
+## Statements, contracts, and OFX — done 2026-10-29
+
+- **Bank statements:** bank, account (last four digits only), period, opening and closing
+  balances, and one transaction per row (`ll-extract/src/statement.rs`, `transactions` table).
+  A row's direction comes from the running balance; opening + transactions = closing is
+  checked, and a statement that doesn't reconcile goes to review.
+- **Contracts:** parties, start and end dates (end worked out from a stated term when needed),
+  notice period, auto-renewal, and value, plus the last day to give notice
+  (`ll-extract/src/contract.rs`). Key terms only; no clause analysis.
+- **OFX export** (`ll-export/src/ofx.rs`): reviewed statements, one OFX 1.0.2 file per account,
+  with stable `FITID`s so a re-import is a duplicate. Imported by QuickBooks Online and Xero.
+- Choosing a document's type re-reads it with that type's rules, and the choice sticks.
+- **Not yet:** tested on sample statements and contracts only. Real banks' layouts vary
+  (multi-page statements, rows split across columns); collect redacted samples, then add a
+  statement benchmark like the CORD one. No reminder when a contract's notice date nears.
+
 ## Phase 6 — Security before shipping installers
 
 - Encryption at rest for the database, blobs, and cached copies (key in the OS keychain).
@@ -86,7 +102,9 @@ fails CI when they drift. Download: crates `tauri-specta`/`specta` (source crate
 
 - **Sync relay** (`ll-sync`, `apps/relay` is empty): ADR 0004 says key provisioning, replay
   protection, device lifecycle, and conflict resolution must be designed and reviewed first.
-- **QuickBooks/Xero API integrations**: need developer accounts and OAuth credentials you own.
+- **QuickBooks/Xero API integrations**: need developer accounts and OAuth credentials you own,
+  and would send records off the device, which Ledgerlens promises not to do. OFX and CSV files
+  that the person imports cover the same need without a network connection.
 - **VLM escalation** (ADR 0002): multi-gigabyte models; revisit after Phase 4 shows where the
   rules + OCR path fails.
 

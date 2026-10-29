@@ -651,6 +651,9 @@ kbd {
   background: var(--bg-2);
 }
 .tag.review {
+  /* `.review` is also the review panel's class; undo its column layout and clipping here. */
+  flex-direction: row;
+  overflow: visible;
   background: var(--warn-soft);
   color: var(--warn);
   border-color: transparent;
@@ -1442,6 +1445,11 @@ kbd {
   min-height: 72px;
   padding: 16px 20px 12px;
 }
+/* A long title (a contract's two parties) truncates; the status tag never does. */
+.review-head > .tag {
+  flex: none;
+  min-width: max-content;
+}
 :root[data-theme="dark"] .review-head {
   min-height: 56px;
   padding: 10px 14px;
@@ -1628,6 +1636,17 @@ kbd {
 .line-item.total {
   border-bottom: 0;
   font-weight: 600;
+}
+/* Statement rows: date, description, signed amount. */
+.line-item.transaction {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.line-item.transaction > :first-child,
+.line-item.transaction > :last-child {
+  white-space: nowrap;
+}
+.line-item .credit {
+  color: var(--accent);
 }
 .muted-copy {
   color: var(--text-3);

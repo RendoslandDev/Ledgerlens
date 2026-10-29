@@ -5,6 +5,9 @@ use ll_core::{Date, DocId};
 use std::{fs, path::PathBuf, str::FromStr};
 
 const INVOICE_PDF: &[u8] = include_bytes!("fixtures/invoice-cups.pdf");
+/// A bank statement and a services contract, printed to PDF by CUPS from `fixtures/*.txt`.
+const STATEMENT_PDF: &[u8] = include_bytes!("fixtures/statement.pdf");
+const CONTRACT_PDF: &[u8] = include_bytes!("fixtures/contract.pdf");
 /// A real, decodable PNG with nothing on it: the manual-entry path.
 const PNG: &[u8] = include_bytes!("fixtures/blank.png");
 /// A receipt rendered by WebKit, then saved as a compressed JPEG and as an image-only PDF. Only
@@ -241,9 +244,9 @@ fn exports_never_overwrite_and_neutralise_formulas() {
 
     let first = app.export(ExportFormat::Quickbooks, &out).unwrap();
     let second = app.export(ExportFormat::Quickbooks, &out).unwrap();
-    assert_ne!(first.path, second.path);
+    assert_ne!(first.paths, second.paths);
     assert_eq!(first.rows, 1);
-    let csv = fs::read_to_string(&first.path).unwrap();
+    let csv = fs::read_to_string(&first.paths[0]).unwrap();
     assert!(csv.starts_with("TxnDate,Name,Currency,Amount"));
     assert!(csv.contains("'=HYPERLINK"), "{csv}");
     assert!(csv.contains("1725.00"));
@@ -405,7 +408,103 @@ fn vendors_bulk_approval_and_export_plan() {
     fs::create_dir_all(&out).unwrap();
     let plan = app.export_plan(ExportFormat::Xero, &out).unwrap();
     assert_eq!(plan.rows, 1);
-    assert!(!std::path::Path::new(&plan.path).exists(), "planning writes nothing");
+    assert!(!std::path::Path::new(&plan.paths[0]).exists(), "planning writes nothing");
     let written = app.export(ExportFormat::Xero, &out).unwrap();
-    assert_eq!(written.path, plan.path);
+    assert_eq!(written.paths, plan.paths);
+}
+
+#[test]
+fn a_bank_statement_is_read_reconciled_and_exported_as_ofx() {
+    let workspace = Workspace::new("statement");
+    let mut app = workspace.app();
+    let doc = app.import("statement.pdf", STATEMENT_PDF).unwrap().document;
+    assert_eq!(doc.kind, "statement");
+    assert_eq!(doc.status, "extracted", "a statement whose balances reconcile needs no review");
+    assert_eq!(doc.vendor.as_deref(), Some("Kumasi Community Bank"));
+    assert_eq!(doc.date.as_deref(), Some("2026-09-30"), "a statement is dated by its period end");
+    assert_eq!(doc.total_minor, Some(353_075), "its headline amount is the closing balance");
+
+    let detail = app.detail(id(&doc.id)).unwrap();
+    let amounts: Vec<i64> = detail.transactions.iter().map(|t| t.amount_minor).collect();
+    assert_eq!(amounts, [250_000, -120_000, -172_500, -4_550, 125]);
+    assert_eq!(detail.transactions[2].description, "Kumasi Cloud Services Ltd invoice KCS-2026-0193");
+    assert!(detail.issues.is_empty(), "{:?}", detail.issues);
+    let account = detail.fields.iter().find(|f| f.name == "account_number").unwrap();
+    assert_eq!(account.value, "••••7890", "only the last digits are kept");
+    assert!(app.vendors().unwrap().is_empty(), "a statement is not spend");
+
+    let out = workspace.dir.join("ofx");
+    fs::create_dir_all(&out).unwrap();
+    let plan = app.export_plan(ExportFormat::Ofx, &out).unwrap();
+    assert_eq!(plan.rows, 5);
+    assert_eq!(plan.paths.len(), 1);
+    assert!(plan.paths[0].ends_with("ledgerlens-statements-2026-10-27-7890-ghs.ofx"), "{:?}", plan.paths);
+    let written = app.export(ExportFormat::Ofx, &out).unwrap();
+    assert_eq!(written.paths, plan.paths);
+    let ofx = fs::read_to_string(&written.paths[0]).unwrap();
+    assert!(ofx.contains("<CURDEF>GHS"), "{ofx}");
+    assert!(ofx.contains("<TRNTYPE>DEBIT<DTPOSTED>20260914<TRNAMT>-1725.00"), "{ofx}");
+    assert!(ofx.contains("<LEDGERBAL><BALAMT>3530.75<DTASOF>20260930"), "{ofx}");
+    let again = app.export(ExportFormat::Ofx, &out).unwrap();
+    assert_ne!(again.paths, written.paths, "an earlier export is never overwritten");
+    assert_eq!(fs::read_to_string(&again.paths[0]).unwrap(), ofx, "ids are stable, so a re-import is a duplicate");
+
+    // A misread closing balance breaks reconciliation and sends the statement back to review.
+    let changed = app.update_field(id(&doc.id), &edit("closing_balance", "3600.00")).unwrap();
+    assert_eq!(changed.summary.status, "needs_review");
+    assert!(changed.issues.iter().any(|i| i.message.contains("closing balance")), "{:?}", changed.issues);
+    assert_eq!(app.export_plan(ExportFormat::Ofx, &out).unwrap().rows, 0, "unreviewed statements are not exported");
+}
+
+#[test]
+fn a_contract_yields_its_parties_dates_and_notice_deadline() {
+    let workspace = Workspace::new("contract");
+    let mut app = workspace.app();
+    let doc = app.import("contract.pdf", CONTRACT_PDF).unwrap().document;
+    assert_eq!(doc.kind, "contract");
+    assert_eq!(doc.vendor.as_deref(), Some("Kumasi Cloud Services Ltd; Northstar Studio Limited"));
+    assert_eq!(doc.date.as_deref(), Some("2026-03-01"));
+    assert_eq!(doc.total_minor, Some(1_800_000));
+    // Twelve months from 1 March ends 28 February; sixty days' notice is due by 30 December.
+    assert_eq!(doc.notice_by.as_deref(), Some("2026-12-30"));
+    let detail = app.detail(id(&doc.id)).unwrap();
+    let value = |name: &str| detail.fields.iter().find(|f| f.name == name).map(|f| f.value.clone());
+    assert_eq!(value("end_date").as_deref(), Some("2027-02-28"));
+    assert_eq!(value("notice_period").as_deref(), Some("60 days"));
+    assert_eq!(value("auto_renew").as_deref(), Some("yes"));
+    // The end date was worked out from the term, and parties and value were read from prose, so
+    // a person confirms them; the dates and notice stated outright are trusted.
+    assert_eq!(doc.status, "needs_review");
+    let mut flagged: Vec<String> = detail.fields.iter().filter(|f| f.needs_review).map(|f| f.name.as_str().to_string()).collect();
+    flagged.sort();
+    assert_eq!(flagged, ["end_date", "parties", "total"]);
+    assert!(app.vendors().unwrap().is_empty(), "a contract is not spend");
+
+    app.update_field(id(&doc.id), &edit("end_date", "2027-02-28")).unwrap();
+    app.update_field(id(&doc.id), &edit("parties", "Kumasi Cloud Services Ltd; Northstar Studio Limited")).unwrap();
+    let confirmed = app.update_field(id(&doc.id), &edit("total", "18000.00")).unwrap();
+    assert_eq!(confirmed.summary.status, "extracted");
+    assert!(app.update_field(id(&doc.id), &edit("notice_period", "soon")).is_err());
+    assert!(app.update_field(id(&doc.id), &edit("auto_renew", "maybe")).is_err());
+    assert_eq!(app.approve(id(&doc.id)).unwrap().status, "approved");
+}
+
+#[test]
+fn choosing_a_type_reads_the_document_again_with_that_types_rules() {
+    let workspace = Workspace::new("kind");
+    let mut app = workspace.app();
+    let doc = app.import("statement.pdf", STATEMENT_PDF).unwrap().document;
+    let as_invoice = app.update_field(id(&doc.id), &edit("kind", "invoice")).unwrap();
+    assert_eq!(as_invoice.summary.kind, "invoice");
+    assert!(as_invoice.transactions.is_empty());
+    assert_eq!(as_invoice.summary.status, "needs_review");
+
+    // The choice sticks when the file is read again.
+    app.reprocess(id(&doc.id)).unwrap();
+    app.run_pending().unwrap();
+    assert_eq!(app.summary(id(&doc.id)).unwrap().kind, "invoice");
+
+    let back = app.update_field(id(&doc.id), &edit("kind", "statement")).unwrap();
+    assert_eq!(back.transactions.len(), 5);
+    assert_eq!(back.summary.status, "extracted");
 }

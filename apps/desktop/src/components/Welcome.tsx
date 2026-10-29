@@ -56,7 +56,7 @@ export function Welcome({
     {
       id: "add",
       title: "Add documents",
-      description: "Pick invoices and receipts to read",
+      description: "Invoices, receipts, statements, or contracts",
       tag: { icon: ThumbsUp, label: "Recommended" },
       layout: "a b / c d",
       tiles: [

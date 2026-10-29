@@ -102,6 +102,8 @@ export type DocumentDetail = {
 	summary: DocumentSummary,
 	fields: FieldView[],
 	lineItems: LineItemView[],
+	/**  Statement rows, in the order printed. */
+	transactions: TransactionView[],
 	issues: IssueView[],
 	text: string | null,
 	/**  Changes people made to fields, oldest first. */
@@ -133,21 +135,27 @@ export type DocumentSummary = {
 	textSource: TextSource | null,
 	/**  Why the document could not be read automatically, or what to check after OCR. */
 	note: string | null,
+	/**  For a contract with an end date and a notice period: the last day to give notice. */
+	noticeBy: string | null,
 };
 
 /**  Stable, serializable classification the UI switches on. */
 export type ErrorCode = "invalid" | "not_found" | "validation" | "storage" | "inference" | "io" | "integration" | "cancelled";
 
-export type ExportFormat = "canonical" | "quickbooks" | "xero";
+export type ExportFormat = "canonical" | "quickbooks" | "xero" | 
+/**  Reviewed bank statements as OFX, one file per account, for QuickBooks Online and Xero. */
+"ofx";
 
 /**  What an export would write, shown to the person before anything is written. */
 export type ExportPlan = {
-	path: string,
+	paths: string[],
+	/**  Records for a CSV; transactions for OFX. */
 	rows: number,
 };
 
 export type ExportResult = {
-	path: string,
+	/**  Every file written: one for a CSV, one per account for OFX. */
+	paths: string[],
 	rows: number,
 };
 
@@ -159,7 +167,7 @@ export type FieldEdit = {
 };
 
 /**  Backbone enum: classifier labels, evidence rows, review UI, corrections and exporters all use it. */
-export type FieldName = "vendor" | "invoice_number" | "doc_date" | "due_date" | "currency" | "subtotal" | "tax" | "total" | "payment_method" | "category";
+export type FieldName = "vendor" | "invoice_number" | "doc_date" | "due_date" | "currency" | "subtotal" | "tax" | "total" | "payment_method" | "category" | "account_number" | "period_start" | "period_end" | "opening_balance" | "closing_balance" | "parties" | "end_date" | "notice_period" | "auto_renew";
 
 export type FieldView = {
 	name: FieldName,
@@ -243,6 +251,15 @@ export type TextSource =
 "ocr";
 
 export type Tier = "fast" | "vlm" | "rules" | "model" | "human";
+
+/**  One statement row. `amount_minor` is signed: money in is positive, money out negative. */
+export type TransactionView = {
+	date: string,
+	description: string,
+	amountMinor: number,
+	balanceMinor: number | null,
+	currency: string,
+};
 
 export type VendorSummary = {
 	name: string,

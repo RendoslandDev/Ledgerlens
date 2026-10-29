@@ -8,13 +8,21 @@ str_enum!(
         Vendor => "vendor", InvoiceNumber => "invoice_number", DocDate => "doc_date",
         DueDate => "due_date", Currency => "currency", Subtotal => "subtotal",
         Tax => "tax", Total => "total", PaymentMethod => "payment_method", Category => "category",
+        // Statements: the bank is `Vendor`, the statement date `DocDate`.
+        AccountNumber => "account_number", PeriodStart => "period_start", PeriodEnd => "period_end",
+        OpeningBalance => "opening_balance", ClosingBalance => "closing_balance",
+        // Contracts: the start is `DocDate`, the contract value `Total`.
+        Parties => "parties", EndDate => "end_date", NoticePeriod => "notice_period",
+        AutoRenew => "auto_renew",
     }
 );
 
 impl FieldName {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 19] = [
         Self::Vendor, Self::InvoiceNumber, Self::DocDate, Self::DueDate, Self::Currency,
         Self::Subtotal, Self::Tax, Self::Total, Self::PaymentMethod, Self::Category,
+        Self::AccountNumber, Self::PeriodStart, Self::PeriodEnd, Self::OpeningBalance,
+        Self::ClosingBalance, Self::Parties, Self::EndDate, Self::NoticePeriod, Self::AutoRenew,
     ];
 
     #[allow(non_upper_case_globals)]
@@ -27,7 +35,9 @@ impl FieldName {
         match kind {
             DocKind::Receipt => matches!(self, Vendor | DocDate | Total),
             DocKind::Invoice => matches!(self, Vendor | InvoiceNumber | DocDate | Total),
-            DocKind::Contract | DocKind::Statement | DocKind::Other => false,
+            DocKind::Statement => matches!(self, Vendor | PeriodEnd | ClosingBalance),
+            DocKind::Contract => matches!(self, Parties | DocDate),
+            DocKind::Other => false,
         }
     }
 }
@@ -89,6 +99,9 @@ mod tests {
         assert!(FieldName::Total.is_critical(DocKind::Receipt));
         assert!(!FieldName::InvoiceNumber.is_critical(DocKind::Receipt));
         assert!(FieldName::InvoiceNumber.is_critical(DocKind::Invoice));
+        assert!(FieldName::ClosingBalance.is_critical(DocKind::Statement));
+        assert!(!FieldName::Total.is_critical(DocKind::Statement));
+        assert!(FieldName::Parties.is_critical(DocKind::Contract));
     }
     #[test]
     fn field_names_roundtrip() {

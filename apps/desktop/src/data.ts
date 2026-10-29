@@ -1,4 +1,4 @@
-import type { DocStatus, DocumentSummary, FieldName } from "@ledgerlens/bindings";
+import type { DocKind, DocStatus, DocumentSummary, FieldName } from "@ledgerlens/bindings";
 
 /** The review states the UI shows, collapsed from the backend's document states. */
 export type QueueState = "review" | "ready" | "approved" | "queued" | "failed";
@@ -41,9 +41,27 @@ export const fieldLabels: Record<FieldName, string> = {
   total: "Total",
   payment_method: "Payment",
   category: "Category",
+  account_number: "Account",
+  period_start: "From",
+  period_end: "To",
+  opening_balance: "Opening",
+  closing_balance: "Closing",
+  parties: "Parties",
+  end_date: "Ends",
+  notice_period: "Notice",
+  auto_renew: "Renews",
 };
 
-export const editableFields: FieldName[] = [
+/** The same field reads differently on a statement or a contract. */
+export function fieldLabel(name: FieldName, kind: DocKind): string {
+  if (kind === "statement" && name === "vendor") return "Bank";
+  if (kind === "statement" && name === "doc_date") return "Issued";
+  if (kind === "contract" && name === "doc_date") return "Starts";
+  if (kind === "contract" && name === "total") return "Value";
+  return fieldLabels[name];
+}
+
+const invoiceFields: FieldName[] = [
   "vendor",
   "invoice_number",
   "doc_date",
@@ -54,6 +72,30 @@ export const editableFields: FieldName[] = [
   "total",
   "category",
 ];
+
+/** The fields shown for each kind of document, in reading order. */
+export function editableFields(kind: DocKind): FieldName[] {
+  switch (kind) {
+    case "statement":
+      return ["vendor", "account_number", "period_start", "period_end", "currency", "opening_balance", "closing_balance"];
+    case "contract":
+      return ["parties", "doc_date", "end_date", "notice_period", "auto_renew", "currency", "total"];
+    default:
+      return invoiceFields;
+  }
+}
+
+/** Fields that must be filled before a document of this kind can leave review (mirrors the backend). */
+export function requiredFields(kind: DocKind): FieldName[] {
+  switch (kind) {
+    case "statement":
+      return ["vendor", "period_end", "opening_balance", "closing_balance"];
+    case "contract":
+      return ["parties", "doc_date"];
+    default:
+      return ["vendor", "doc_date", "total"];
+  }
+}
 
 export const currencies = [
   "USD", "EUR", "GBP", "GHS", "NGN", "KES", "ZAR", "CAD", "AUD", "JPY", "INR", "CNY", "IDR",

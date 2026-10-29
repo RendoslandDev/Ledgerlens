@@ -1,10 +1,11 @@
 //! Orchestration: extractors -> calibrate -> merge -> validate -> adjust -> route -> persist.
 
 use crate::calibrate::{adjust_with_validation, needs_review, PlattScaler};
-use crate::rules;
-use crate::validate::{validate, Issue, Severity, REQUIRED_FIELDS};
+use crate::validate::{required_fields, validate_for, Issue, Severity};
+use crate::{contract, rules, statement};
 use ll_core::{
     Config, Confidence, Currency, Date, DocId, DocKind, DocStatus, ExtractedField, FieldName, FieldValue, LineItem, Result, Tier,
+    Transaction,
 };
 use ll_store::Store;
 use std::collections::HashSet;
@@ -34,6 +35,8 @@ pub struct Extraction {
     /// here so that a human correction can lift penalties that a bad value had caused.
     pub merged: Vec<ExtractedField>,
     pub line_items: Vec<LineItem>,
+    /// Statement rows; empty for every other kind.
+    pub transactions: Vec<Transaction>,
     pub issues: Vec<Issue>,
     /// Fields a person should check (low confidence, or required and missing).
     pub review: Vec<FieldName>,
@@ -111,14 +114,29 @@ impl Pipeline {
 
     /// Pure: text in, [`Extraction`] out. Nothing is written.
     pub fn run(&self, text: &str) -> Extraction {
-        let kind = rules::classify_kind(text);
-        let mut candidates = Vec::new();
-        for e in &self.extractors {
-            for mut f in e.extract(text, self.default_currency) {
-                f.confidence = self.scaler.apply(f.confidence);
-                candidates.push(f);
+        self.run_as(text, rules::classify_kind(text))
+    }
+
+    /// [`Pipeline::run`] for a document whose kind is already known (a person chose it).
+    /// Invoices and receipts go through every extractor; statements and contracts through their
+    /// own rules.
+    pub fn run_as(&self, text: &str, kind: DocKind) -> Extraction {
+        let mut transactions = Vec::new();
+        let raw = match kind {
+            DocKind::Statement => {
+                let (fields, rows) = statement::extract_statement(text, self.default_currency);
+                transactions = rows;
+                fields
             }
-        }
+            DocKind::Contract => contract::extract_contract(text, self.default_currency),
+            DocKind::Invoice | DocKind::Receipt | DocKind::Other => {
+                self.extractors.iter().flat_map(|e| e.extract(text, self.default_currency)).collect()
+            }
+        };
+        let candidates: Vec<ExtractedField> = raw
+            .into_iter()
+            .map(|mut f| { f.confidence = self.scaler.apply(f.confidence); f })
+            .collect();
         let merged = merge(candidates);
         let mut fields = merged.clone();
         let cur = fields
@@ -127,12 +145,15 @@ impl Pipeline {
             .and_then(|f| f.value.as_text())
             .and_then(|t| Currency::new(t).ok())
             .unwrap_or(self.default_currency);
-        let line_items = rules::extract_line_items(text, cur);
-        let issues = validate(&fields, &line_items, self.today);
+        let line_items = match kind {
+            DocKind::Invoice | DocKind::Receipt | DocKind::Other => rules::extract_line_items(text, cur),
+            DocKind::Statement | DocKind::Contract => Vec::new(),
+        };
+        let issues = validate_for(kind, &fields, &line_items, &transactions, self.today);
         adjust_with_validation(&mut fields, &issues);
-        let review = needs_review(&fields, &REQUIRED_FIELDS, self.review_threshold);
+        let review = needs_review(&fields, required_fields(kind), self.review_threshold);
         let status = decide_status(&review, &issues);
-        Extraction { kind, fields, merged, line_items, issues, review, status }
+        Extraction { kind, fields, merged, line_items, transactions, issues, review, status }
     }
 
     /// Writes an extraction to the store and returns the document's resulting status.
@@ -152,15 +173,16 @@ impl Pipeline {
         combined.extend(human);
 
         store.replace_line_items(doc, &ex.line_items)?;
+        store.replace_transactions(doc, &ex.transactions)?;
         let items = store.line_items(doc)?;
-        let issues = validate(&combined, &items, self.today);
+        let issues = validate_for(ex.kind, &combined, &items, &ex.transactions, self.today);
         adjust_with_validation(&mut combined, &issues);
 
         for f in combined.iter().filter(|f| f.tier != Tier::Human) { store.upsert_field(doc, f)?; }
         store.set_kind(doc, ex.kind)?;
         store.refresh_invoice(doc)?;
 
-        let review = needs_review(&combined, &REQUIRED_FIELDS, self.review_threshold);
+        let review = needs_review(&combined, required_fields(ex.kind), self.review_threshold);
         let status = decide_status(&review, &issues);
         store.set_status(doc, status)?;
         Ok(status)
@@ -357,6 +379,39 @@ mod tests {
         assert_eq!(p.persist(&mut store, id, &p.run(CLEAN)).unwrap(), DocStatus::Approved);
         assert!(store.fields(id).unwrap().is_empty());
         assert!(p.persist(&mut store, DocId::new(), &p.run(CLEAN)).is_err(), "unknown document is an error");
+    }
+
+    const STATEMENT: &str = "Kumasi Community Bank\nStatement of Account\nAccount No: 0012 3456 7890\n\
+        Statement period: 01/03/2026 to 31/03/2026\nCurrency: GHS\n\
+        Date\tDescription\tDebit\tCredit\tBalance\nOpening balance\t\t\t1,000.00\n\
+        02/03\tSalary\t\t2,500.00\t3,500.00\n05/03\tRent\t1,200.00\t\t2,300.00\nClosing balance\t2,300.00";
+
+    #[test]
+    fn a_reconciling_statement_is_ready_and_its_rows_are_stored() {
+        let mut store = Store::open_in_memory().unwrap();
+        let id = insert(&store, "s1");
+        let p = pipeline().with_today(Date::new(2026, 4, 2).unwrap());
+        let ex = p.run(STATEMENT);
+        assert_eq!(ex.kind, DocKind::Statement);
+        assert!(ex.issues.is_empty(), "{:?}", ex.issues);
+        assert_eq!(ex.status, DocStatus::Extracted, "review: {:?}", ex.review);
+        assert!(ex.line_items.is_empty());
+        assert_eq!(p.persist(&mut store, id, &ex).unwrap(), DocStatus::Extracted);
+        assert_eq!(store.transactions(id).unwrap().len(), 2);
+        assert!(store.invoices().unwrap().is_empty(), "statements are not invoice records");
+
+        let wrong = STATEMENT.replace("Closing balance\t2,300.00", "Closing balance\t2,900.00");
+        let ex = p.run(&wrong);
+        assert_eq!(ex.status, DocStatus::NeedsReview);
+        assert!(ex.issues.iter().any(|i| i.code == "balance_mismatch"));
+    }
+
+    #[test]
+    fn a_person_can_read_a_document_as_another_kind() {
+        let ex = pipeline().run_as(CLEAN, DocKind::Contract);
+        assert_eq!(ex.kind, DocKind::Contract);
+        assert!(ex.line_items.is_empty());
+        assert!(ex.review.contains(&FieldName::Parties));
     }
 
     #[test]

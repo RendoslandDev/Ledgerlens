@@ -9,8 +9,8 @@ use regex::Regex;
 use std::sync::OnceLock;
 
 macro_rules! lazy_re {
-    ($name:ident, $pat:expr) => {
-        fn $name() -> &'static Regex {
+    ($vis:vis $name:ident, $pat:expr) => {
+        $vis fn $name() -> &'static Regex {
             static C: OnceLock<Regex> = OnceLock::new();
             C.get_or_init(|| {
                 let p: String = $pat.to_string();
@@ -20,11 +20,11 @@ macro_rules! lazy_re {
     };
 }
 
-const DATE_PAT: &str = r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|[A-Za-z]{3,9}\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}|\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]{3,9}\.?,?\s+\d{4}";
+pub(crate) const DATE_PAT: &str = r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|[A-Za-z]{3,9}\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}|\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]{3,9}\.?,?\s+\d{4}";
 
-lazy_re!(date_re, DATE_PAT);
+lazy_re!(pub(crate) date_re, DATE_PAT);
 lazy_re!(inv_no_re, r"(?i)\b(?:invoice|inv)\b\s*(?:(?:#|no\b\.?|number\b|num\b\.?)\s*[:#.]?|:)\s*([A-Z0-9][A-Z0-9\-/]*)");
-lazy_re!(inv_date_re, format!(r"(?i)\b(invoice\s+date|date\s+of\s+issue|issue\s+date|issued(?:\s+on)?|date)\b\s*[:\-]?\s*({DATE_PAT})"));
+lazy_re!(pub(crate) inv_date_re, format!(r"(?i)\b(invoice\s+date|date\s+of\s+issue|issue\s+date|issued(?:\s+on)?|date)\b\s*[:\-]?\s*({DATE_PAT})"));
 lazy_re!(due_re, format!(r"(?i)\b(due\s+date|date\s+due|payment\s+due(?:\s+date)?|pay\s+by|due\s+on|due)\b\s*[:\-]?\s*({DATE_PAT})"));
 lazy_re!(amount_re, r"(?:US\$|GH₵|[$€£₵])?\s?\(?-?\d(?:[\d.,]*\d)?\)?");
 lazy_re!(subtotal_re, r"(?i)\b(?:sub[\s\-]?total|sub\s?tt[li]|net\s+(?:amount|amt|total|sales)|total\s+(?:before\s+(?:tax|vat)|excl(?:uding|\.)?\s*(?:tax|vat)))\b");
@@ -47,6 +47,10 @@ lazy_re!(vendor_label_re, r"(?i)^\s*(?:vendor|supplier|seller|from|bill(?:ed)?\s
 lazy_re!(title_re, r"(?i)^(?:tax\s+)?(?:invoice|receipt|statement|bill|credit\s+note|proforma|quotation|quote|page|date|due|total|subtotal|tel|phone|email|e-mail|fax|www|http|ship\s+to|sold\s+to|customer|order|po)\b");
 lazy_re!(suffix_re, r"(?i)\b(?:inc|llc|ltd|limited|corp|corporation|gmbh|plc|co|company|enterprises?|traders?|trading|services|solutions|group|holdings|ventures|industries|sa|ag|bv|pty|lda|s\.?r\.?l|s\.?a\.?r\.?l|s\.?p\.?a|s\.?a\.?s|n\.?v|oy|ab|pte|pvt|kk)\b\.?$");
 lazy_re!(qty_re, r"(?i)^(\d+(?:\.\d+)?)\s*(?:x|pcs|hrs?|units?)?$");
+// "SERVICE AGREEMENT", "Lease Agreement", "Employment Contract": a title line naming the document.
+lazy_re!(contract_title_re, r"^(?:[a-z&,\-]+\s+){0,4}(?:agreement|contract)(?:\s+(?:for|of)\s+[a-z ]{1,40})?$");
+// Body phrases a contract uses and an invoice or statement does not.
+lazy_re!(contract_body_re, r"\b(?:this\s+(?:agreement|contract)\s+is\s+(?:made|entered)|(?:by\s+and\s+)?between\b.{1,200}\band\b.{1,200}\b(?:hereinafter|collectively|the\s+parties)|in\s+witness\s+whereof|the\s+parties\s+agree)");
 lazy_re!(kind_title_re, r"^(?:tax\s+|sales\s+|payment\s+|official\s+|cash\s+|commercial\s+|account\s+)?(invoice|receipt|statement)(?:\s+of\s+account)?$");
 // A leading quantity on a receipt line: "2 NASI GORENG", "1X M-Caramel Tea", "3 x Bolts".
 lazy_re!(lead_qty_re, r"(?i)^(\d{1,3})\s*[x×]?\s+(.*\p{L}.*)$");
@@ -56,19 +60,19 @@ lazy_re!(code_re, r"\b(USD|EUR|GBP|GHS|NGN|KES|ZAR|CAD|AUD|JPY|CHF|INR|CNY|IDR)\
 // "Rp" before an amount ("Rp 25.000", "Rp.25,000"); the letters alone are too common to count.
 lazy_re!(rupiah_re, r"\bRp\.?\s?\d");
 
-fn fld(name: FieldName, value: FieldValue, conf: f32) -> ExtractedField {
+pub(crate) fn fld(name: FieldName, value: FieldValue, conf: f32) -> ExtractedField {
     ExtractedField { name, value, confidence: Confidence::new(conf), tier: Tier::Rules }
 }
 
-fn split_lines(text: &str) -> Vec<&str> {
+pub(crate) fn split_lines(text: &str) -> Vec<&str> {
     text.split(['\n', '\u{c}']).map(|l| l.trim_end_matches('\r')).collect()
 }
 
-fn cells(line: &str) -> Vec<&str> {
+pub(crate) fn cells(line: &str) -> Vec<&str> {
     line.split('\t').map(str::trim).filter(|c| !c.is_empty()).collect()
 }
 
-fn first_cell(line: &str) -> &str {
+pub(crate) fn first_cell(line: &str) -> &str {
     line.split('\t').map(str::trim).find(|c| !c.is_empty()).unwrap_or("")
 }
 
@@ -80,6 +84,7 @@ pub fn classify_kind(text: &str) -> DocKind {
     let head_lines: Vec<&str> = split_lines(&lower).into_iter().map(str::trim).filter(|l| !l.is_empty()).take(6).collect();
     // A line that is only a title ("RECEIPT", "TAX INVOICE") outranks a label such as "Invoice No:".
     for line in &head_lines {
+        if contract_title_re().is_match(line) { return DocKind::Contract; }
         if let Some(caps) = kind_title_re().captures(line) {
             return match &caps[1] {
                 "invoice" => DocKind::Invoice,
@@ -87,6 +92,10 @@ pub fn classify_kind(text: &str) -> DocKind {
                 _ => DocKind::Statement,
             };
         }
+    }
+    // "Payment terms per agreement" on an invoice is not a contract; contract wording is.
+    if contract_body_re().is_match(&lower.replace('\n', " ")) && !head_lines.iter().any(|l| l.contains("invoice") || l.contains("receipt")) {
+        return DocKind::Contract;
     }
     let head = head_lines.join("\n");
     for hay in [head.as_str(), lower.as_str()] {
@@ -135,7 +144,7 @@ fn invoice_number(lines: &[&str]) -> Option<String> {
 }
 
 /// `05/04/2024` could be either 5 April or 4 May; `Date::parse` picks US order, so say so.
-fn ambiguous(raw: &str) -> bool {
+pub(crate) fn ambiguous(raw: &str) -> bool {
     let parts: Vec<&str> = raw.split(['-', '/', '.']).collect();
     if parts.len() != 3 || parts[0].len() >= 4 { return false; }
     match (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
@@ -150,7 +159,7 @@ fn other_date_prefix(prefix: &str) -> bool {
     ["due", "payment", "ship", "shipping", "delivery", "order", "start", "end", "period"].iter().any(|w| p.ends_with(w))
 }
 
-fn find_date(lines: &[&str], re: &Regex, invoice_date: bool) -> Option<(Date, f32)> {
+pub(crate) fn find_date(lines: &[&str], re: &Regex, invoice_date: bool) -> Option<(Date, f32)> {
     for line in lines {
         for caps in re.captures_iter(line) {
             let label = caps[1].to_ascii_lowercase();
@@ -195,7 +204,7 @@ fn join_split_numbers(text: &str) -> String {
 }
 
 /// The right-most amount in `rest`, ignoring dates and percentages ("VAT (15%) $18.75" -> 18.75).
-fn last_amount(rest: &str, cur: Currency) -> Option<Money> {
+pub(crate) fn last_amount(rest: &str, cur: Currency) -> Option<Money> {
     let joined = join_split_numbers(rest);
     let cleaned = date_re().replace_all(&joined, " ");
     let mut best = None;
@@ -247,7 +256,7 @@ fn plausible_vendor(cell: &str) -> bool {
     letters >= 2 && digits <= letters && !date_re().is_match(cell)
 }
 
-fn vendor(lines: &[&str]) -> Option<(String, f32)> {
+pub(crate) fn vendor(lines: &[&str]) -> Option<(String, f32)> {
     for l in lines {
         if let Some(c) = vendor_label_re().captures(l) {
             let v = first_cell(&c[1]);

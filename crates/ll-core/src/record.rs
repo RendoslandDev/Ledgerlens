@@ -12,6 +12,16 @@ pub struct LineItem {
     pub amount: Money,
 }
 
+/// One row of a statement. `amount` is signed from the account holder's side: money in is
+/// positive, money out negative. `balance` is the running balance printed after it, if any.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Transaction {
+    pub date: Date,
+    pub description: String,
+    pub amount: Money,
+    pub balance: Option<Money>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EvidenceSource { Native, OcrNer, Vlm, User }
@@ -74,13 +84,8 @@ impl RecordCandidate {
     /// Lowest confidence across critical fields. A critical field with no evidence counts as zero,
     /// so a record missing its total can never look "confident".
     pub fn min_critical_confidence(&self) -> Confidence {
-        const ALL: [FieldName; 10] = [
-            FieldName::Vendor, FieldName::InvoiceNumber, FieldName::DocDate, FieldName::DueDate,
-            FieldName::Currency, FieldName::Subtotal, FieldName::Tax, FieldName::Total,
-            FieldName::PaymentMethod, FieldName::Category,
-        ];
         let mut min = Confidence::ONE;
-        for f in ALL.into_iter().filter(|f| f.is_critical(self.kind)) {
+        for f in FieldName::ALL.into_iter().filter(|f| f.is_critical(self.kind)) {
             let best = self.evidence.iter().filter(|e| e.field == f)
                 .map(|e| e.confidence).fold(Confidence::ZERO, |a, b| if b > a { b } else { a });
             min = min.min(best);

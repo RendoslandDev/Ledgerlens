@@ -138,6 +138,7 @@ export function ReportsView({
             <option value="canonical">Ledgerlens CSV</option>
             <option value="quickbooks">QuickBooks CSV</option>
             <option value="xero">Xero CSV</option>
+            <option value="ofx">Bank statements (OFX)</option>
           </select>
           <button className="button" onClick={() => exportCsv(format)}>
             <ArrowDownToLine size={14} aria-hidden="true" /> Export

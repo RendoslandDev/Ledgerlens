@@ -1,5 +1,9 @@
 #![forbid(unsafe_code)]
 
+mod ofx;
+
+pub use ofx::{export_ofx, OfxStatement};
+
 use csv::WriterBuilder;
 use ll_core::{Currency, Error, Result};
 use ll_store::InvoiceRow;
@@ -87,7 +91,7 @@ fn spreadsheet_safe(value: &str) -> String {
     }
 }
 
-fn format_amount(minor: i64, currency: Currency) -> String {
+pub(crate) fn format_amount(minor: i64, currency: Currency) -> String {
     let exponent = currency.exponent() as u32;
     let factor = 10u64.pow(exponent);
     let absolute = minor.unsigned_abs();

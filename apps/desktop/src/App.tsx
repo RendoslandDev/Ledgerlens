@@ -644,7 +644,9 @@ function Workspace({ theme, setTheme }: { theme: Theme; setTheme: (theme: Theme)
     try {
       const result = await unwrap(commands.exportRecords(exportState.format));
       setExportState(null);
-      announce(`Exported ${result.rows} record${result.rows === 1 ? "" : "s"} to ${result.path}`);
+      const what = exportState.format === "ofx" ? "transaction" : "record";
+      const where = result.paths.length === 1 ? result.paths[0] : `${result.paths.length} files`;
+      announce(`Exported ${result.rows} ${what}${result.rows === 1 ? "" : "s"} to ${where}`);
     } catch (error) {
       announce(errorMessage(error), "error");
     } finally {

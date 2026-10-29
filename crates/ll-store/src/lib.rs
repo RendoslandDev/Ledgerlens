@@ -1,6 +1,6 @@
 use ll_core::{
     Date, DocId, DocKind, DocStatus, Error, ExtractedField, FieldName, FieldValue, LineItem,
-    Result, now_unix,
+    Result, Transaction as StatementRow, now_unix,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use std::{path::Path, str::FromStr};
@@ -81,6 +81,21 @@ Migration {
             changed_at INTEGER NOT NULL
         );
         CREATE INDEX idx_corrections_document ON corrections(document_id, id);
+    ",
+}, Migration {
+    version: 4,
+    name: "statement transactions",
+    sql: "
+        CREATE TABLE transactions (
+            document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+            position INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            description TEXT NOT NULL,
+            amount_minor INTEGER NOT NULL,
+            currency TEXT NOT NULL,
+            balance_minor INTEGER,
+            PRIMARY KEY (document_id, position)
+        );
     ",
 }];
 
@@ -467,6 +482,53 @@ impl Store {
         .collect()
     }
 
+    pub fn replace_transactions(&self, id: DocId, transactions: &[StatementRow]) -> Result<()> {
+        let transaction = self.conn.unchecked_transaction().map_err(Error::storage)?;
+        transaction
+            .execute("DELETE FROM transactions WHERE document_id=?1", [id.to_string()])
+            .map_err(Error::storage)?;
+        for (position, row) in transactions.iter().enumerate() {
+            transaction
+                .execute(
+                    "INSERT INTO transactions (document_id, position, date, description, amount_minor, currency, balance_minor)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    params![id.to_string(), position, row.date.to_string(), row.description, row.amount.minor,
+                        row.amount.currency.code(), row.balance.map(|balance| balance.minor)],
+                )
+                .map_err(Error::storage)?;
+        }
+        transaction.commit().map_err(Error::storage)
+    }
+
+    pub fn transactions(&self, id: DocId) -> Result<Vec<StatementRow>> {
+        let mut statement = self.conn.prepare(
+            "SELECT date, description, amount_minor, currency, balance_minor
+             FROM transactions WHERE document_id=?1 ORDER BY position",
+        ).map_err(Error::storage)?;
+        let rows = statement
+            .query_map([id.to_string()], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<i64>>(4)?,
+                ))
+            })
+            .map_err(Error::storage)?;
+        rows.map(|row| {
+            let (date, description, amount_minor, currency, balance_minor) = row.map_err(Error::storage)?;
+            let currency = ll_core::Currency::new(&currency)?;
+            Ok(StatementRow {
+                date: Date::parse(&date).map_err(|_| Error::Invalid("invalid stored transaction date".into()))?,
+                description,
+                amount: ll_core::Money::new(amount_minor, currency),
+                balance: balance_minor.map(|minor| ll_core::Money::new(minor, currency)),
+            })
+        })
+        .collect()
+    }
+
     pub fn refresh_invoice(&self, id: DocId) -> Result<()> {
         let document = self.get_document(id)?;
         if !matches!(document.kind, DocKind::Invoice | DocKind::Receipt) {
@@ -703,6 +765,26 @@ mod tests {
         assert!(store.invoices().unwrap().is_empty());
         assert!(store.corrections(document.id).unwrap().is_empty(), "history goes with the document");
         assert!(store.delete_document(document.id).is_err());
+    }
+
+    #[test]
+    fn transactions_roundtrip_in_order_and_are_replaced() {
+        let store = Store::open_in_memory().unwrap();
+        let id = store.insert_document("/s.pdf", "t1", DocKind::Statement).unwrap().0.id;
+        let usd = ll_core::Currency::USD;
+        let rows = vec![
+            StatementRow { date: Date::new(2026, 3, 2).unwrap(), description: "Salary".into(),
+                amount: ll_core::Money::new(250_000, usd), balance: Some(ll_core::Money::new(350_000, usd)) },
+            StatementRow { date: Date::new(2026, 3, 5).unwrap(), description: "Rent".into(),
+                amount: ll_core::Money::new(-120_000, usd), balance: None },
+        ];
+        store.replace_transactions(id, &rows).unwrap();
+        assert_eq!(store.transactions(id).unwrap(), rows);
+        store.replace_transactions(id, &rows[1..]).unwrap();
+        assert_eq!(store.transactions(id).unwrap(), rows[1..]);
+        store.delete_document(id).unwrap();
+        let left: i64 = store.conn().query_row("SELECT count(*) FROM transactions", [], |r| r.get(0)).unwrap();
+        assert_eq!(left, 0, "deleting the document removes its transactions");
     }
 
     #[test]
