@@ -18,10 +18,15 @@ if (-not $exe) { throw 'the installer did not put the app in %LOCALAPPDATA%\Ledg
 
 Write-Host "launching the installed $($exe.FullName)"
 $app = Start-Process -FilePath $exe.FullName -PassThru
-for ($i = 0; $i -lt 30 -and -not (Test-Path (Join-Path $data 'ledgerlens.db')); $i++) { Start-Sleep 1 }
+# A cold runner's first launch of a new executable can be slow (Defender scans it), so allow 90 s.
+for ($i = 0; $i -lt 90 -and -not (Test-Path (Join-Path $data 'ledgerlens.db')); $i++) { Start-Sleep 1 }
 Start-Sleep 5
 if ($app.HasExited) { throw "the installed app exited with $($app.ExitCode)" }
-if (-not (Test-Path (Join-Path $data 'ledgerlens.db'))) { throw "the installed app created no database in $data" }
+if (-not (Test-Path (Join-Path $data 'ledgerlens.db'))) {
+  Get-ChildItem $env:LOCALAPPDATA -Depth 1 -ErrorAction SilentlyContinue |
+    Where-Object FullName -match 'ledgerlens' | ForEach-Object { Write-Host $_.FullName }
+  throw "the installed app created no database in $data within 90 s"
+}
 if (-not (Test-Path (Join-Path $data 'EBWebView'))) { throw 'the installed app started no WebView2' }
 Stop-Process -Id $app.Id
 Write-Host 'the installed app launched, created its database, and started WebView2'
