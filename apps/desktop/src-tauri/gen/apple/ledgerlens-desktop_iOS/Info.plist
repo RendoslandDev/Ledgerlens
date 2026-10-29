@@ -40,5 +40,15 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of a receipt or invoice. The photo is read and stored on this device only.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose photos of receipts or invoices. They are read and stored on this device only.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
