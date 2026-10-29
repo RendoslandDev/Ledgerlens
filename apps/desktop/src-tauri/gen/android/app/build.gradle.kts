@@ -14,8 +14,29 @@ val tauriProperties = Properties().apply {
     }
 }
 
+// Release signing key, never committed: storeFile, password, and keyAlias, read from the file
+// named by LEDGERLENS_KEYSTORE_PROPERTIES, else gen/android/keystore.properties. Without one the
+// release APK is built unsigned (see docs/deploy.md).
+val keystoreProperties = Properties().apply {
+    val propFile = System.getenv("LEDGERLENS_KEYSTORE_PROPERTIES")?.let { file(it) }
+        ?: rootProject.file("keystore.properties")
+    if (propFile.exists()) {
+        propFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     compileSdk = 37
+    if (keystoreProperties.containsKey("storeFile")) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("password")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("password")
+            }
+        }
+    }
     namespace = "com.ledgerlens.app"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
@@ -39,6 +60,7 @@ android {
             }
         }
         getByName("release") {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             optimization {
                enable = true
             }

@@ -1,6 +1,7 @@
 # Builds the desktop installers when a version tag (v1.2.3) is pushed, and attaches them to a draft
 # GitHub Release. macOS builds are signed when the Apple secrets are set (see docs/deploy.md);
 # Windows and Linux builds are not signed. CI (ci.yml) smoke-tests the Windows and Linux installers.
+# A signed Android APK is added to the same draft once the desktop builds have created it.
 name: Release desktop
 
 on:
@@ -84,8 +85,72 @@ jobs:
             - Mac: the .dmg (aarch64 = Apple silicon, x64 = Intel). macOS 13 or later.
             - Windows: the -setup.exe (or the .msi). Windows 10 or 11, 64-bit.
             - Linux: the .AppImage, .deb, or .rpm (64-bit; Ubuntu 22.04, Debian 12, Fedora 36, or newer).
+            - Android: the _android.apk (Android 7 or later). Open it on the phone and allow installing from that app when asked.
 
-            These builds aren't notarized or code-signed yet, so macOS and Windows warn on first launch; the README says how to open them. Reading photos and scans (OCR) and folder watching are Mac only; on Windows and Linux, PDFs with text are read and photos are entered by hand.
+            These builds aren't notarized or code-signed yet, so macOS and Windows warn on first launch; the README says how to open them. Reading photos and scans (OCR) and folder watching are Mac only; on Windows, Linux, and Android, PDFs with text are read and photos are entered by hand.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  # A signed Android APK for installing directly (sideloading), added to the draft release the
+  # desktop jobs created. Needs the ANDROID_KEYSTORE and ANDROID_KEYSTORE_PASSWORD secrets
+  # (docs/deploy.md); an unsigned APK can't be installed, so without them this job fails.
+  android:
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi
+
+      - name: Android NDK (the version the app is developed with)
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;29.0.14206865" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+      - name: Install app dependencies
+        run: npm ci
+        working-directory: apps/desktop
+
+      - name: Signing key
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            echo "::error::ANDROID_KEYSTORE and ANDROID_KEYSTORE_PASSWORD must be set to release Android"
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          printf 'storeFile=%s\npassword=%s\nkeyAlias=ledgerlens\n' \
+            "$RUNNER_TEMP/release.jks" "$ANDROID_KEYSTORE_PASSWORD" > "$RUNNER_TEMP/keystore.properties"
+          echo "LEDGERLENS_KEYSTORE_PROPERTIES=$RUNNER_TEMP/keystore.properties" >> "$GITHUB_ENV"
+
+      # arm64 and 32-bit arm in one APK: every phone of the last decade, not x86 emulators.
+      - name: Build the APK
+        run: npx tauri android build --apk --target aarch64 --target armv7
+        working-directory: apps/desktop
+
+      - name: Check the signature and attach the APK to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")"
+          apk="$RUNNER_TEMP/Ledgerlens_${version}_android.apk"
+          cp apps/desktop/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk "$apk"
+          "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner" verify --print-certs "$apk"
+          gh release upload "$GITHUB_REF_NAME" "$apk" --clobber

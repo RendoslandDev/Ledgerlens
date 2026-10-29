@@ -71,7 +71,8 @@ tag in the site's Download section (`#download` in `apps/web/index.html`) with i
 `.github/workflows/release.yml` builds installers for macOS (Apple silicon and Intel), Windows
 (`-setup.exe` and `.msi`), and Linux (`.AppImage`, `.deb`, `.rpm`) with `tauri-apps/tauri-action`
 when you push a tag such as `v0.1.0`, and attaches them to a draft GitHub
-Release for you to publish. The site's and README's download links point at the latest release.
+Release for you to publish. A second job then builds a signed Android APK (arm64 and 32-bit arm,
+Android 7+) and adds it to the same draft; it needs the Android signing secrets (section 4). The site's and README's download links point at the latest release.
 
 **What each platform supports:**
 - **macOS 13 or later:** everything, including OCR and folder watching. The Apple silicon build was
@@ -221,20 +222,34 @@ too and installs the same pieces.
    ```
 7. Run the app on it with live reload: `npx tauri android dev`.
 
-**Signing key (you).** Keep the keystore and its passwords safe and backed up. Losing them blocks
-updates unless you use Play App Signing.
-```sh
-keytool -genkey -v -keystore ~/ledgerlens-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
-```
-Create `src-tauri/gen/android/keystore.properties` (never commit it):
+**Signing key.** One key signs both the APK on GitHub Releases and the Play upload. It was
+created on 2026-10-29 in `~/.ledgerlens-signing/` (outside the repository): `ledgerlens-release.jks`
+(alias `ledgerlens`, RSA 4096, valid 10,000 days) and `keystore.properties`, which holds the
+password. Back up both somewhere safe and offline (you). If they are lost, people who installed
+the APK can't update it; they would have to uninstall, which deletes their library.
+
+`app/build.gradle.kts` signs release builds with the file named by `LEDGERLENS_KEYSTORE_PROPERTIES`,
+else `src-tauri/gen/android/keystore.properties` (ignored by git). The format is:
 ```properties
-storeFile=/Users/you/ledgerlens-upload.jks
-storePassword=…
-keyAlias=upload
-keyPassword=…
+storeFile=/absolute/path/to/ledgerlens-release.jks
+password=…
+keyAlias=ledgerlens
 ```
-Then load it in `src-tauri/gen/android/app/build.gradle.kts` as a `release` signing config,
-following <https://v2.tauri.app/distribute/sign/android/>.
+Without either file, release builds are unsigned.
+
+**GitHub secrets for the release APK (you).** Settings → Secrets and variables → Actions:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE` | `base64 -i ~/.ledgerlens-signing/ledgerlens-release.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | the `password=` line of `~/.ledgerlens-signing/keystore.properties` |
+
+**Build a signed APK locally:**
+```sh
+LEDGERLENS_KEYSTORE_PROPERTIES=~/.ledgerlens-signing/keystore.properties \
+  npx tauri android build --apk --target aarch64 --target armv7
+```
+It lands at `src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk`.
 
 **Build the upload:**
 ```sh
@@ -265,6 +280,6 @@ The `.aab` lands under `src-tauri/gen/android/app/build/outputs/bundle/`.
    - `cargo clippy --workspace --all-targets -- -D warnings`.
 3. Re-run the benchmark if the extraction rules changed (`benchmarks/README.md`).
 4. Tag and push to build the desktop release; publish the draft release.
-5. Build and upload the iOS `.ipa` and Android `.aab`; release through TestFlight and internal
+5. Check the draft has the Android APK. Build and upload the iOS `.ipa` and Android `.aab`; release through TestFlight and internal
    testing, then to production.
 6. Update the website's Download section if links or versions changed.
