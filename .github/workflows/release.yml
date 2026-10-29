@@ -1,5 +1,6 @@
-# Builds signed desktop installers when a version tag (v1.2.3) is pushed, and attaches them to a
-# draft GitHub Release. See docs/deploy.md for the signing secrets this expects.
+# Builds the desktop installers when a version tag (v1.2.3) is pushed, and attaches them to a draft
+# GitHub Release. macOS builds are signed when the Apple secrets are set (see docs/deploy.md);
+# Windows and Linux builds are not signed. CI (ci.yml) smoke-tests the Windows and Linux installers.
 name: Release desktop
 
 on:
@@ -19,12 +20,10 @@ jobs:
             args: --target aarch64-apple-darwin
           - platform: macos-latest
             args: --target x86_64-apple-darwin
-          # Windows and Linux are not in the first release: neither build has been launched and
-          # checked yet. Uncomment after a CI run produces installers that open and import a PDF.
-          # - platform: windows-latest
-          #   args: ""
-          # - platform: ubuntu-22.04
-          #   args: ""
+          - platform: windows-latest
+            args: ""
+          - platform: ubuntu-22.04
+            args: ""
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -80,7 +79,13 @@ jobs:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
           releaseName: Ledgerlens ${{ github.ref_name }}
-          releaseBody: Early preview for macOS. Download the .dmg for your Mac (aarch64 = Apple silicon, x64 = Intel). If the build isn't notarized, macOS will block the first launch; see the README for how to open it.
+          releaseBody: |
+            Early preview. Pick the file for your computer:
+            - Mac: the .dmg (aarch64 = Apple silicon, x64 = Intel). macOS 13 or later.
+            - Windows: the -setup.exe (or the .msi). Windows 10 or 11, 64-bit.
+            - Linux: the .AppImage, .deb, or .rpm (64-bit; Ubuntu 22.04, Debian 12, Fedora 36, or newer).
+
+            These builds aren't notarized or code-signed yet, so macOS and Windows warn on first launch; the README says how to open them. Reading photos and scans (OCR) and folder watching are Mac only; on Windows and Linux, PDFs with text are read and photos are entered by hand.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

@@ -74,7 +74,8 @@ fails CI when they drift. Download: crates `tauri-specta`/`specta` (source crate
 - ONNX Runtime via the `ort` crate (fetches the runtime library at build time, ~30 MB).
 - `sqlite-vec` for vector search (crate, small). Enables "find documents like this" and search by
   meaning, with citations back to documents (`ll-query` plan).
-- Cross-platform OCR models for Windows/Linux are deferred until there is a Windows/Linux target.
+- Cross-platform OCR for Windows and Linux. Both now build and ship (text PDFs only); OCR there is
+  the next platform gap, along with folder watching (the folder dialog is macOS-only).
 
 ## Phase 6 — Security before shipping installers
 

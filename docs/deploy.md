@@ -68,16 +68,27 @@ tag in the site's Download section (`#download` in `apps/web/index.html`) with i
 
 ## 2. Desktop downloads (GitHub Releases)
 
-`.github/workflows/release.yml` builds macOS installers (Apple silicon and Intel) with
-`tauri-apps/tauri-action` when you push a tag such as `v0.1.0`, and attaches them to a draft GitHub
+`.github/workflows/release.yml` builds installers for macOS (Apple silicon and Intel), Windows
+(`-setup.exe` and `.msi`), and Linux (`.AppImage`, `.deb`, `.rpm`) with `tauri-apps/tauri-action`
+when you push a tag such as `v0.1.0`, and attaches them to a draft GitHub
 Release for you to publish. The site's and README's download links point at the latest release.
 
 **What each platform supports:**
 - **macOS 13 or later:** everything, including OCR and folder watching. The Apple silicon build was
   built and launched locally; the Intel build has not been launched yet.
-- **Windows and Linux:** not built or tested, so they are left out of the release matrix
-  (commented out in `release.yml`). Expect text PDFs only there: no OCR and no folder watching.
-  Turn them on after a CI build produces installers that open and import a PDF.
+- **Windows 10 or 11 and Linux (built on Ubuntu 22.04, so glibc 2.35+):** text PDFs; no OCR and
+  no folder watching yet, and the app says so in Settings. App data lives in local app data
+  (`%LOCALAPPDATA%\com.ledgerlens.app`, `~/.local/share/com.ledgerlens.app`), never the
+  roaming profile.
+
+**What CI checks before a release** (`.github/workflows/ci.yml`, on every push to `main`): tests
+and `clippy -D warnings` on all three platforms with Rust pinned to 1.96.0. On Windows it installs
+the `-setup.exe` silently, checks the app starts, creates its database, and starts WebView2, then
+rebuilds with WebView2's debug port open (`additionalBrowserArgs`; the shipped build cannot be
+attached to, since the app's browser arguments override both the environment variable and the
+registry override) and imports a text PDF over the real IPC. On Linux it installs the `.deb` and
+checks the app starts under Xvfb and creates its database. Not covered: the `.msi`, `.AppImage`,
+and `.rpm`, importing in the Linux app, and desktop Windows 10/11 (CI runs Windows Server).
 
 **Without Apple signing (the default).** The app is ad-hoc signed (`signingIdentity: "-"` in
 `tauri.conf.json`, and the workflow falls back to `-` when the secret is empty). It runs, but
