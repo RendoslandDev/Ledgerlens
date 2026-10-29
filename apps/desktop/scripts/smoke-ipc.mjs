@@ -1,9 +1,9 @@
 // End-to-end smoke test for a release build on Windows, run in CI.
 //
-// Launches the app with WebView2's remote debugging port open (CI also sets it through WebView2's
-// loader-override registry key, since the app's own browser arguments win over the environment),
-// then drives the real IPC from inside the page: checks system_info, imports a text PDF as raw
-// bytes (the same call the Add button makes), and waits for the background reader to extract it.
+// Launches a build whose window opens WebView2's remote debugging port (see
+// .github/scripts/smoke-windows.ps1), then drives the real IPC from inside the page: checks
+// system_info, imports a text PDF as raw bytes (the same call the Add button makes), and waits for
+// the background reader to extract it.
 // On failure it prints the app's and WebView2's processes, listening ports, and data folder.
 //
 // Usage: node scripts/smoke-ipc.mjs <app.exe> <fixture.pdf>
@@ -19,10 +19,7 @@ if (!exe || !fixture) {
 const PORT = 9333;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const app = spawn(exe, [], {
-  env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${PORT}` },
-  stdio: "inherit",
-});
+const app = spawn(exe, [], { stdio: "inherit" });
 let exited = null;
 app.on("exit", (code) => (exited = code));
 

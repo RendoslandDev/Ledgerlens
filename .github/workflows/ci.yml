@@ -74,7 +74,7 @@ jobs:
         working-directory: apps/desktop
         run: ../../.github/scripts/annotate.sh "Build installers" npx tauri build
 
-      - name: Smoke test (Windows, installed app over IPC)
+      - name: Smoke test (Windows, installed app launches; IPC imports a PDF)
         if: runner.os == 'Windows'
         run: .github/scripts/annotate.sh "Windows smoke test" pwsh -NoProfile -File .github/scripts/smoke-windows.ps1
 
