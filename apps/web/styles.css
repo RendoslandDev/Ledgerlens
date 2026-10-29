@@ -744,7 +744,7 @@ h3 {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-top: 40px;
 }
@@ -841,6 +841,29 @@ h3 {
 .download p {
   color: var(--text-2);
   font-size: 15px;
+}
+.download-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.btn.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.release-status {
+  margin-top: 16px;
+  color: var(--text-2);
+  font-size: 15px;
+}
+.card .tag.soon {
+  justify-self: start;
+  width: max-content;
+  margin-bottom: 10px;
+}
+/* The hidden attribute must win over component display rules (.tag, .btn are inline-flex). */
+[hidden] {
+  display: none !important;
 }
 
 .privacy {

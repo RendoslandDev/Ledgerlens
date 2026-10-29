@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#070707" media="(prefers-color-scheme: dark)" />
     <meta
       name="description"
-      content="Ledgerlens reads invoices and receipts on your own computer, then lets you review, query, and export them. Nothing is uploaded."
+      content="Ledgerlens reads invoices and receipts on your own device, with bank statements and contracts next, then lets you review, query, and export them. Nothing is uploaded."
     />
     <title>Ledgerlens · Paperwork, read locally</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
@@ -57,9 +57,12 @@
           <p class="pill"><span class="pill-dot"></span> Early preview · Mac, Windows, Linux, Android</p>
           <h1>Your paperwork,<br />read on your own machine.</h1>
           <p class="lede">
-            Ledgerlens pulls vendors, dates, totals, and line items out of invoices and receipts
-            on your computer, sends anything it isn't sure about to review, and turns the rest
-            into records you can query and export.
+            Ledgerlens reads invoices<span data-until="0.1.1"> and receipts</span><span
+            data-since="0.1.1" hidden>, receipts, bank statements, and contracts</span> on your
+            own device<span data-until="0.1.1">, with
+            bank statements and contracts coming in 0.1.1</span>. It sends anything it isn't sure
+            about to review and turns the rest into records you can query and export to
+            QuickBooks or Xero.
           </p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="#get">Get the preview</a>
@@ -164,7 +167,7 @@
                 <span>Ask</span><span>SQL</span><span>CSV</span>
               </div>
               <h3>Ask and export</h3>
-              <p>Question your reviewed records and export CSV for QuickBooks or Xero.</p>
+              <p>Question your reviewed records and export CSV for QuickBooks or Xero<span data-since="0.1.1" hidden>, or OFX for bank statements</span>.</p>
               <span class="tag">Reports</span>
             </article>
           </div>
@@ -181,6 +184,22 @@
               <p>
                 Text is read from the PDF itself or, on a Mac, iPhone, or iPad, with Apple's
                 on-device OCR for scans and photos. Rules extract the fields, and anything uncertain goes to review.
+              </p>
+            </article>
+            <article class="card">
+              <span class="tag soon" data-until="0.1.1">Coming in 0.1.1</span>
+              <h3>Statements that must add up</h3>
+              <p>
+                Every transaction is read with its direction taken from the running balance. If
+                opening plus transactions isn't the closing balance, it waits for you.
+              </p>
+            </article>
+            <article class="card">
+              <span class="tag soon" data-until="0.1.1">Coming in 0.1.1</span>
+              <h3>Contracts, before they renew</h3>
+              <p>
+                Parties, start and end dates, notice period, and auto-renewal, with the last day
+                to give notice. Key terms only, not legal review.
               </p>
             </article>
             <article class="card">
@@ -207,8 +226,9 @@
             <article class="card">
               <h3>Exports your accountant takes</h3>
               <p>
-                Canonical, QuickBooks-shaped, and Xero-shaped CSV, guarded against spreadsheet
-                formula injection. You see where a file goes before it's written.
+                CSV shaped for QuickBooks or Xero<span data-since="0.1.1" hidden>, and OFX bank
+                statements for both</span>, guarded against spreadsheet formula injection. Nothing
+                is sent for you, and you see where a file goes before it's written.
               </p>
             </article>
             <article class="card">
@@ -272,11 +292,15 @@
             Every copy reads and stores documents on its own device. Nothing is uploaded, so there
             is no account to create.
           </p>
+          <p class="release-status" data-release-status hidden></p>
           <div class="downloads">
             <article class="download">
               <h3>Mac</h3>
               <p>Everything: on-device OCR for scans and photos, and folder watching. macOS 13 or later.</p>
-              <a class="btn btn-primary btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest">Download for Mac</a>
+              <div class="download-links">
+                <a class="btn btn-primary btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest" data-asset="aarch64\.dmg$">Apple silicon</a>
+                <a class="btn btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest" data-asset="x64\.dmg$">Intel</a>
+              </div>
             </article>
             <article class="download">
               <h3>iPhone and iPad</h3>
@@ -287,14 +311,20 @@
               <h3>Android</h3>
               <p>Reads text PDFs. Photos and scans need the details entered by hand until OCR arrives.
               Android 7 or later; installed from the download, not Google Play yet.</p>
-              <a class="btn btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest">Download the APK</a>
+              <div class="download-links">
+                <a class="btn btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest" data-asset="_android\.apk$">Download the APK</a>
+              </div>
             </article>
             <article class="download">
               <h3>Windows and Linux</h3>
               <p>Reads text PDFs; photos and scans need the details entered by hand until OCR
               arrives. Windows 10 or 11; Linux from Ubuntu 22.04 or similar. Newer and less tried
               than the Mac app.</p>
-              <a class="btn btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest">Download</a>
+              <div class="download-links">
+                <a class="btn btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest" data-asset="-setup\.exe$">Windows</a>
+                <a class="btn btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest" data-asset="\.deb$">Linux .deb</a>
+                <a class="btn btn-small" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest" data-asset="\.AppImage$">AppImage</a>
+              </div>
             </article>
           </div>
         </div>
@@ -318,7 +348,7 @@
             browser or Files when Android asks.
           </p>
           <div class="cta-actions">
-            <a class="btn btn-primary" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest">Download the preview</a>
+            <a class="btn btn-primary" href="https://github.com/RendoslandDev/Ledgerlens/releases/latest" data-release-page>Download the preview</a>
             <a class="btn" href="https://github.com/RendoslandDev/Ledgerlens/issues">Report a problem</a>
           </div>
         </div>
@@ -333,6 +363,63 @@
     </footer>
 
     <script>
+      // Downloads come from the latest published GitHub release. Each button links straight to
+      // its file; while nothing is published the buttons say so instead of opening an empty
+      // page. Text marked data-since/data-until follows the released version, so the page never
+      // advertises what the download can't do yet. Without JavaScript, or if GitHub can't be
+      // reached, the links still go to the releases page and the "coming" labels stay.
+      const REPO = "https://github.com/RendoslandDev/Ledgerlens";
+      const newer = (version, than) => {
+        const a = version.replace(/^v/, "").split(".").map(Number);
+        const b = than.split(".").map(Number);
+        for (let i = 0; i < 3; i++) if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
+        return true;
+      };
+      function applyRelease(release) {
+        const status = document.querySelector("[data-release-status]");
+        if (!release) {
+          status.textContent = "The first preview isn't published yet. Watch the repository on GitHub to hear when it is.";
+          status.hidden = false;
+          document.querySelectorAll("[data-asset]").forEach((link) => {
+            link.removeAttribute("href");
+            link.setAttribute("aria-disabled", "true");
+            link.classList.add("is-disabled");
+          });
+          const page = document.querySelector("[data-release-page]");
+          page.href = REPO;
+          page.textContent = "Watch on GitHub";
+          return;
+        }
+        status.textContent = `Latest preview: ${release.tag_name}`;
+        status.hidden = false;
+        document.querySelector("[data-release-page]").href = release.html_url;
+        document.querySelectorAll("[data-asset]").forEach((link) => {
+          const pattern = new RegExp(link.dataset.asset);
+          const asset = release.assets.find((file) => pattern.test(file.name));
+          if (asset) {
+            link.href = asset.browser_download_url;
+            link.title = asset.name;
+          } else {
+            link.hidden = true;
+          }
+        });
+        document.querySelectorAll("[data-since]").forEach((el) => {
+          el.hidden = !newer(release.tag_name, el.dataset.since);
+        });
+        document.querySelectorAll("[data-until]").forEach((el) => {
+          el.hidden = newer(release.tag_name, el.dataset.until);
+        });
+      }
+      fetch("https://api.github.com/repos/RendoslandDev/Ledgerlens/releases/latest", {
+        headers: { Accept: "application/vnd.github+json" },
+      })
+        .then((response) => {
+          if (response.status === 404) return applyRelease(null);
+          if (!response.ok) return; // rate-limited or down: keep the plain links
+          return response.json().then(applyRelease);
+        })
+        .catch(() => {});
+
       document.querySelector(".theme-toggle").addEventListener("click", () => {
         const root = document.documentElement;
         const dark =
