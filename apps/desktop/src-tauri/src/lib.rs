@@ -100,7 +100,9 @@ fn configure<R: Runtime>(
     let raw = raw_handler::<R>();
     builder
         .setup(|app| {
-            let mut data_dir = app.path().app_data_dir()?;
+            // Local, not roaming, app data: on Windows a roaming profile would copy every stored
+            // document to the domain's file server. Elsewhere the two are the same folder.
+            let mut data_dir = app.path().app_local_data_dir()?;
             // Debug builds can point at a scratch workspace; release builds always use app data.
             if cfg!(debug_assertions) {
                 if let Some(dir) = std::env::var_os("LEDGERLENS_DATA_DIR") {
