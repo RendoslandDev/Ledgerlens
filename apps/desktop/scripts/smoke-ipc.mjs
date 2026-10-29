@@ -103,7 +103,7 @@ async function main() {
   for (let attempt = 0; attempt < 60; attempt++) {
     const listed = await invoke("list_documents", "{}");
     const document = listed?.value?.find((entry) => entry.fileName === name);
-    if (document && !["queued", "reading"].includes(document.status)) {
+    if (document && !["queued", "processing"].includes(document.status)) {
       console.log(`read: status=${document.status} source=${document.textSource} vendor=${document.vendor}`);
       if (document.textSource !== "text_layer" || !document.vendor?.includes("Kumasi")) {
         throw new Error(`unexpected extraction: ${JSON.stringify(document)}`);
